@@ -4,7 +4,7 @@
 # Maintainer: Ray Sherwin <slick517d@gmail.com>
 
 pkgbase=linux-uconsole-rpi4
-_commit=36ed2f9d67a40900ce6b7b719fc8b6d6f662360c
+_commit=8dcc16f0adc50f5cb8a11a6dde238131d0ca45a0
 _srcname=linux-${_commit}
 _kernelname=${pkgbase#linux}
 _desc="Raspberry Pi 4 64-bit kernel for uConsole"
@@ -29,7 +29,7 @@ source=("https://github.com/raspberrypi/linux/archive/${_commit}.tar.gz"
         'logo_linux_clut224.ppm'
 )
 
-md5sums=('ba890a1912a0b0f3a1212d86312ae0cf'
+md5sums=('b6d73bfb5b5b93062bf260c8e7212452'
          '03f084a2a758fd718b8cc509d7deafe5'
          '26268df39cf32b70a4dd9ea7b6ca8ae2'
          'f7758f00fe85e5514cf7ff8efe41bd6f'
