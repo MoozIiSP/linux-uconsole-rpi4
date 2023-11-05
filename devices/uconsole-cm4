@@ -1,0 +1,22 @@
+## Maintained by Max Fierke ##
+
+# Kernel and bootloader stuff
+#linux-clockworkpi-uc4
+#linux-clockworkpi-uc4-headers
+#linux-clockworkpi-uc4-overlays
+raspberrypi-bootloader
+raspberrypi-bootloader-x
+raspberrypi-utils
+plymouth
+plymouth-theme-manjaro
+
+# Video drivers
+
+# Other device specific packages
+#crda
+wireless-regdb
+ap6256-firmware
+#firmware-raspberrypi
+networkmanager
+generic-post-install
+#uconsole-cm4-post-install

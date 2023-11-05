@@ -1,0 +1,12 @@
+[Unit]
+Description= Stop dmesg flooding in tty
+ 
+[Service]
+USER=root
+Type=oneshot
+ExecStart=/usr/local/bin/stop-dmesg
+TimeoutSec=0
+RemainAfterExit=yes
+ 
+[Install]
+WantedBy=multi-user.target 

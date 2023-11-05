@@ -1,0 +1,25 @@
+pkgname=uconsole-cm4-post-install
+pkgver=20$(date +%y%m%d)
+pkgrel=1
+pkgdesc="ClockworkPi uConsole CM4 post install files"
+arch=('any')
+url="https://manjaro.org"
+license=('GPL')
+install=${pkgname}.install
+depends=('generic-post-install')
+source=("stop-dmesg"
+        "stop-dmesg.service"
+        "99-vcio-rewrite.rules")
+
+md5sums=('SKIP'
+         'SKIP'
+         'SKIP')
+
+package() {
+    #modifies some files to match the rpi4.
+    echo "Modifying rpi4 specific files..."
+    
+    install -Dm755 stop-dmesg -t "${pkgdir}/usr/local/bin/"
+    install -Dm644 stop-dmesg.service -t "${pkgdir}/usr/lib/systemd/system/"
+    install -Dm644 99-vcio-rewrite.rules -t "${pkgdir}/etc/udev/rules.d/"
+}

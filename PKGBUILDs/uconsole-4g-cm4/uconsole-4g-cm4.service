@@ -1,0 +1,12 @@
+[Unit]
+Description=uConsole 4G Module Service
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/usr/local/bin/uconsole-4g-cm4 enable
+ExecStop=/usr/local/bin/uconsole-4g-cm4 disable
+
+[Install]
+WantedBy=multi-user.target

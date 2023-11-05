@@ -1,58 +1,92 @@
-# Contributor: Dave Higham <pepedog@archlinuxarm.org>
-# Contributor: Kevin Mihelich <kevin@archlinuxarm.org>
-# Contributor: Oleg Rakhmanov <oleg@archlinuxarm.org>
-# Maintainer: Ray Sherwin <slick517d@gmail.com>
-
-pkgbase=linux-uconsole-rpi4
-_commit=36ed2f9d67a40900ce6b7b719fc8b6d6f662360c
+pkgbase=linux-clockworkpi-uc4
+_commit=bfe927647253ab3a86be16320baa1579518c6786
 _srcname=linux-${_commit}
 _kernelname=${pkgbase#linux}
 _desc="Raspberry Pi 4 64-bit kernel for uConsole"
-pkgver=6.1.58
-pkgrel=6
+pkgver=6.1.73
+pkgrel=1
 arch=('aarch64')
 url="http://www.kernel.org/"
 license=('GPL2')
 makedepends=('xmlto' 'docbook-xsl' 'kmod' 'inetutils' 'bc' 'git')
 options=('!strip')
 source=("https://github.com/raspberrypi/linux/archive/${_commit}.tar.gz"
-        '0001-arm64-dts-uconsole-rpi-dts.patch'
-        '0002-gpu-drm-panel-add-cwd686-cwu50-drivers.patch' 
-        '0003-gpu-drm-vc4-vc4-dsi.patch'
-        '0004-mfd-axp20x-add-uconsole-rpi-power-support.patch' 
-        '0005-staging-vc04-bcm2835-audio.patch'
-        '0006-video-backlight-add-ocp8178-driver.patch'
-        'config'
+        '0001-video-backlight-add-OCP8178-backlight-driver.patch'
+        '0002-drm-panel-add-clockwork-cwu50.patch'
+        '0003-driver-staging-add-uconsole-simple-amplifier-switch.patch'
+        '0004-arm-dts-overlays-add-uconsole-cm4.patch'
+        '0005-drivers-power-axp20x-customize-PMU.patch'
+        '0006-power-axp20x_battery-implement-calibration.patch'
+        '0007-drm-panel-cwu50-expose-dsi-error-status-to-userspace.patch'
+        'config-clockworkpi-uconsole-cm4.aarch64'
         'linux.preset'
         '60-linux.hook'
         '90-linux.hook'
         'logo_linux_clut224.ppm'
 )
 
-md5sums=('ba890a1912a0b0f3a1212d86312ae0cf'
-         '03f084a2a758fd718b8cc509d7deafe5'
-         '26268df39cf32b70a4dd9ea7b6ca8ae2'
-         'f7758f00fe85e5514cf7ff8efe41bd6f'
-         'c2618540125492c53a4632c3cd65506a'
-         '43561c8bdc44ee4eb7f9a935f11baa39'
-         '7c81d9dddf2a61518aa97fa6a360cb25'
-         '1281ad07aea11941d4c20be0a5af4e56'
-         '86d4a35722b5410e3b29fc92dae15d4b'
-         'ce6c81ad1ad1f8b333fd6077d47abdaf'
-         '0a98f67d3354d5a2f9fe1a62a0c0839c'
-         '7f7ddadea6f4a7d3017380cb83b95b5e')
+md5sums=('SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP')
+
+### Start to inject code to support cross compile
+# echo "$CARCH"
+if ! uname -m | grep "aarch64"
+then
+  # inject code to makepkg's lib, force current architecture to be aarch64
+  CARCH="aarch64"
+  # tweak flags
+  _MAKE_CROSS_FLAGS=(
+    "CROSS_COMPILE=aarch64-linux-gnu-"
+    "ARCH=arm64"
+    "-j$(nproc)"
+  )
+  _STRIP="aarch64-linux-gnu-strip"
+  # add extra deps
+  makedepends+=("aarch64-linux-gnu-gcc")
+else
+  _MAKE_CROSS_FLAGS=()
+  _STRIP="strip"
+fi
+
+_make() {
+  make ${MAKEFLAGS} "${_MAKE_CROSS_FLAGS[@]}" "$@"
+}
+
+#_make() {
+#  test -s version
+#  make ${MAKEFLAGS} "${_MAKE_CROSS_FLAGS[@]}" KERNELRELEASE="$(<version)" "$@"
+#}
+
+_strip() {
+  $_STRIP "$@"
+}
+### End cross compile support
 
 prepare() {
   cd "${srcdir}/${_srcname}"
-  cat "${srcdir}/config" > ./.config
+
+  cat "${srcdir}/config-clockworkpi-uconsole-cm4.aarch64" > ./.config
 
   # ClockworkPI uConsole RPi4 patches
-  patch -Np1 -i "${srcdir}/0001-arm64-dts-uconsole-rpi-dts.patch"                       # DTS
-  patch -Np1 -i "${srcdir}/0002-gpu-drm-panel-add-cwd686-cwu50-drivers.patch"           # LCD
-  patch -Np1 -i "${srcdir}/0003-gpu-drm-vc4-vc4-dsi.patch"                              # 
-  patch -Np1 -i "${srcdir}/0004-mfd-axp20x-add-uconsole-rpi-power-support.patch"        # Power/Battery/Charger
-  patch -Np1 -i "${srcdir}/0005-staging-vc04-bcm2835-audio.patch"                       # Audio
-  patch -Np1 -i "${srcdir}/0006-video-backlight-add-ocp8178-driver.patch"               # Backlight
+  local src
+  for src in "${source[@]}"; do
+    src="${src%%::*}"
+    src="${src##*/}"
+    [[ $src = *.patch ]] || continue
+    echo "Applying patch $src..."
+    patch -Np1 < "../$src"
+  done
 
   # add pkgrel to extraversion
   sed -ri "s|^(EXTRAVERSION =)(.*)|\1 \2-${pkgrel}|" Makefile
@@ -68,14 +102,14 @@ build() {
   cd "${srcdir}/${_srcname}"
 
   # get kernel version
-  make prepare
+  _make prepare
 
   # load configuration
   # Configure the kernel. Replace the line below with one of your choice.
   #make menuconfig # CLI menu for configuration
   #make nconfig # new CLI menu for configuration
   #make xconfig # X-based configuration
-  #make oldconfig # using old config from previous kernel version
+  _make olddefconfig # using old config from previous kernel version
   #make bcmrpi_defconfig # using RPi defconfig
   # ... or manually edit .config
 
@@ -91,15 +125,18 @@ build() {
 
   #yes "" | make config
 
-  make ${MAKEFLAGS} Image.gz modules dtbs
+  #unset LDFLAGS
+  _make Image.gz modules
+  # Generate device tree blobs with symbols to support applying device tree overlays in U-Boot
+  _make DTC_FLAGS="-@" dtbs
 }
 
 _package() {
   pkgdesc="The Linux Kernel and modules - ${_desc}"
-  depends=('coreutils' 'kmod' 'initramfs'
-           'firmware-raspberrypi' 'uconsole-rpi-overlays')
+  depends=('coreutils' 'kmod' 'initramfs' 'firmware-raspberrypi' 'linux-clockworkpi-uc4-overlays')
   optdepends=('wireless-regdb: Set the correct wireless channels of your country'
-              'linux-firmware: Extra firmware that RPi or kernel does not provide')
+              'linux-firmware: Extra firmware not provided by RPi or kernel'
+	      'ap6256-firmware: WIFI&BT firmware, replaces brcmfmac43456-firmware and firmware-raspberrypi on uConsole')
   provides=('kernel26' "linux=${pkgver}")
   conflicts=('kernel26' 'linux' 'uboot-raspberrypi')
   install=${pkgname}.install
@@ -110,24 +147,15 @@ _package() {
   KARCH=arm64
 
   # get kernel version
-  _kernver="$(make kernelrelease)"
+  _kernver="$(_make kernelrelease)"
   _basekernel=${_kernver%%-*}
   _basekernel=${_basekernel%.*}
 
-# Temp disable
-#  mkdir -p "${pkgdir}"/{boot/overlays,usr/lib/modules}
-   mkdir -p "${pkgdir}"/{boot,usr/lib/modules}
-   make INSTALL_MOD_PATH="${pkgdir}/usr" modules_install
+  mkdir -p "${pkgdir}"/{boot,usr/lib/modules}
+  _make INSTALL_MOD_PATH="${pkgdir}/usr" modules_install
 
   cp arch/$KARCH/boot/dts/broadcom/bcm2710-rpi-cm3.dtb "${pkgdir}/boot"
   cp arch/$KARCH/boot/dts/broadcom/bcm2711-rpi-cm4.dtb "${pkgdir}/boot"
-  #cp arch/$KARCH/boot/dts/broadcom/bcm2711-rpi-cm4-io.dtb "${pkgdir}/boot"
-  #cp arch/$KARCH/boot/dts/broadcom/bcm2711-rpi-cm4s.dtb "${pkgdir}/boot"
-  #cp arch/$KARCH/boot/dts/broadcom/bcm2711-rpi-4-b.dtb "${pkgdir}/boot"
-  #cp arch/$KARCH/boot/dts/broadcom/bcm2711-rpi-400.dtb "${pkgdir}/boot"
-  #cp arch/$KARCH/boot/dts/broadcom/bcm2710-rpi-3-b-plus.dtb "${pkgdir}/boot"
-  #cp arch/$KARCH/boot/dts/broadcom/bcm2710-rpi-3-b.dtb "${pkgdir}/boot"
-  #cp arch/$KARCH/boot/dts/broadcom/bcm2710-rpi-zero-2-w.dtb "${pkgdir}/boot"
   cp arch/$KARCH/boot/Image.gz "${pkgdir}/boot/kernel8.img"
 
   # make room for external modules
@@ -160,6 +188,8 @@ _package() {
     install -Dm644 /dev/stdin "${pkgdir}/usr/share/libalpm/hooks/60-${pkgbase}.hook"
   sed "${_subst}" ../90-linux.hook |
     install -Dm644 /dev/stdin "${pkgdir}/usr/share/libalpm/hooks/90-${pkgbase}.hook"
+  #sed "${_subst}" ../90-linux-dtbs.hook |
+  #  install -Dm644 /dev/stdin "${pkgdir}/usr/share/libalpm/hooks/90-${pkgbase}-dtbs.hook"
 }
 
 _package-headers() {
@@ -218,20 +248,20 @@ _package-headers() {
   #chmod -R u=rwX,go=rX "${_builddir}"
 
   # strip scripts directory
-  local _binary _strip
+  local _binary __strip
   while read -rd '' _binary; do
     case "$(file -bi "${_binary}")" in
-      *application/x-sharedlib*)  _strip="${STRIP_SHARED}"   ;; # Libraries (.so)
-      *application/x-archive*)    _strip="${STRIP_STATIC}"   ;; # Libraries (.a)
-      *application/x-executable*) _strip="${STRIP_BINARIES}" ;; # Binaries
+      *application/x-sharedlib*)  __strip="${STRIP_SHARED}"   ;; # Libraries (.so)
+      *application/x-archive*)    __strip="${STRIP_STATIC}"   ;; # Libraries (.a)
+      *application/x-executable*) __strip="${STRIP_BINARIES}" ;; # Binaries
       *) continue ;;
     esac
-    /usr/bin/strip ${_strip} "${_binary}"
+    /usr/bin/aarch64-linux-gnu-strip ${__strip} "${_binary}"
   done < <(find "${_builddir}/scripts" -type f -perm -u+w -print0 2>/dev/null)
 }
 
-_packageuconsole-rpi-overlays() {
-  pkgdesc="Raspberry Pi overlays for uConsole RPi4"
+_package-overlays() {
+  pkgdesc="Raspberry Pi overlays for uConsole CM4"
   options=(!strip)
   conflicts=('rpi-overlays')
 
@@ -244,7 +274,7 @@ _packageuconsole-rpi-overlays() {
   cp arch/$KARCH/boot/dts/overlays/README "${pkgdir}/boot/overlays"
 }
 
-pkgname=("${pkgbase}" "${pkgbase}-headers" "uconsole-rpi-overlays")
+pkgname=("${pkgbase}" "${pkgbase}-headers" "${pkgbase}-overlays")
 for _p in ${pkgname[@]}; do
   eval "package_${_p}() {
     _package${_p#${pkgbase}}

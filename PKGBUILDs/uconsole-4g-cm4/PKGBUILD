@@ -1,0 +1,18 @@
+pkgname=uconsole-4g-cm4
+pkgver=20$(date +%y%m%d)
+pkgrel=1
+pkgdesc="A utility script to enable or disable 4G module of uConsole"
+arch=('any')
+license=('Unknown')
+depends=('libgpiod')
+source=("uconsole-4g-cm4"
+		"uconsole-4g-cm4.service")
+md5sums=('SKIP'
+		 'SKIP')
+
+package() {
+	cd "$srcdir"
+
+	install -Dm755 uconsole-4g-cm4 "/usr/local/bin/uconsole-4g-cm4"
+	install -Dm644 "$srcdir/uconsole-4g-cm4.service" "/usr/lib/systemd/system/uconsole-4g-cm4.service"
+}

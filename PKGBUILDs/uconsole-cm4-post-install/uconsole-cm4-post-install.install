@@ -1,0 +1,38 @@
+post_install() {
+  # Define root partitions partuuid
+  PART_DEV=`findmnt / -o source -n | cut -f1 -d"["`
+  PART_NAME=`echo $PART_DEV | cut -d "/" -f 3`
+  ROOT_PART=$(blkid | grep "${PART_NAME}" | awk -F '"' '{print $4}')
+  FSTYPE=$(blkid | grep "${PART_NAME}" | awk -F '"' '{print $10}')
+  
+    # Enable services
+    systemctl enable stop-dmesg.service
+
+    # Edit mkinitcpio.conf
+    echo "Editing mkinitcpio.conf..."
+    sed -i s/"MODULES=()"/"MODULES=(vc4 btrfs)"/g /etc/mkinitcpio.conf
+
+    # Edit cmdline.txt
+    echo "Editing cmdline.txt..."
+    sed -i s!"plymouth.enable=0"!"quiet splash plymouth.ignore-serial-consoles"!g /boot/cmdline.txt
+    sed -i s!"console=tty1"!"console=tty3"!g /boot/cmdline.txt
+
+    # Edit config.txt
+    #echo "Editing config.txt..."
+    #echo "disable_splash=1" >> /boot/config.txt
+
+    # Disable AMS on installs with kwin
+    if [ -f /usr/bin/kwin_x11 ]; then
+        echo "KWIN_DRM_NO_AMS=1" >> /etc/environment
+    fi
+}
+
+post_upgrade() {
+    # Disable AMS on installs with kwin
+    if [[ $(grep "KWIN_DRM_NO_AMS=1" /etc/environment) ]]; then
+        echo "AMS already disabled..."
+    elif [ -f /usr/bin/kwin_x11 ]; then
+        echo "KWIN_DRM_NO_AMS=1" >> /etc/environment
+        echo "Disabling AMS..."
+    fi
+}

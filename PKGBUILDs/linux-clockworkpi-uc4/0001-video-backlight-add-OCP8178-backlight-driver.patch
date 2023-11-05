@@ -1,5 +1,20 @@
+From c541b4c80043848ff19e4906ecfc49c6f6818198 Mon Sep 17 00:00:00 2001
+From: Potato <nikko@faint.day>
+Date: Mon, 2 Oct 2023 15:14:09 +0800
+Subject: [PATCH 1/6] video: backlight: Add OCP8178 backlight driver
+
+This driver is taken from
+https://github.com/clockworkpi/DevTerm/blob/main/Code/patch/armbian_build_a06/patch/kernel-005-backlight.patch
+and optimized for v6.5.
+---
+ drivers/video/backlight/Kconfig      |   6 +
+ drivers/video/backlight/Makefile     |   1 +
+ drivers/video/backlight/ocp8178_bl.c | 245 +++++++++++++++++++++++++++
+ 3 files changed, 252 insertions(+)
+ create mode 100644 drivers/video/backlight/ocp8178_bl.c
+
 diff --git a/drivers/video/backlight/Kconfig b/drivers/video/backlight/Kconfig
-index 0e66152..c6a639a 100644
+index 0e66152b02e6..efb66e7abb85 100644
 --- a/drivers/video/backlight/Kconfig
 +++ b/drivers/video/backlight/Kconfig
 @@ -484,6 +484,12 @@ config BACKLIGHT_LED
@@ -8,7 +23,7 @@ index 0e66152..c6a639a 100644
  
 +config BACKLIGHT_OCP8178
 +	tristate "OCP8178 Backlight Driver"
-+	depends on GPIOLIB
++	depends on GPIOLIB || COMPILE_TEST
 +	help
 +	  If you have an OCP8178, say Y to enable the backlight driver.
 +
@@ -16,7 +31,7 @@ index 0e66152..c6a639a 100644
  
  endmenu
 diff --git a/drivers/video/backlight/Makefile b/drivers/video/backlight/Makefile
-index ac878b4..e0828f4 100644
+index ac878b4fb0ee..4d431321f1f2 100644
 --- a/drivers/video/backlight/Makefile
 +++ b/drivers/video/backlight/Makefile
 @@ -60,3 +60,4 @@ obj-$(CONFIG_BACKLIGHT_WM831X)		+= wm831x_bl.o
@@ -24,13 +39,12 @@ index ac878b4..e0828f4 100644
  obj-$(CONFIG_BACKLIGHT_RAVE_SP)		+= rave-sp-backlight.o
  obj-$(CONFIG_BACKLIGHT_LED)		+= led_bl.o
 +obj-$(CONFIG_BACKLIGHT_OCP8178)		+= ocp8178_bl.o
-\ No newline at end of file
 diff --git a/drivers/video/backlight/ocp8178_bl.c b/drivers/video/backlight/ocp8178_bl.c
 new file mode 100644
-index 0000000..db8db17
+index 000000000000..2b0d1b159500
 --- /dev/null
 +++ b/drivers/video/backlight/ocp8178_bl.c
-@@ -0,0 +1,277 @@
+@@ -0,0 +1,245 @@
 +/*
 + * ocp8178_bl.c - ocp8178 backlight driver
 + *
@@ -42,26 +56,14 @@ index 0000000..db8db17
 +#include <linux/backlight.h>
 +#include <linux/err.h>
 +#include <linux/fb.h>
-+#include <linux/gpio.h> /* Only for legacy support */
 +#include <linux/gpio/consumer.h>
 +#include <linux/init.h>
 +#include <linux/kernel.h>
 +#include <linux/module.h>
 +#include <linux/of.h>
-+#include <linux/of_gpio.h>
-+#include <linux/platform_data/gpio_backlight.h>
 +#include <linux/platform_device.h>
 +#include <linux/slab.h>
 +#include <linux/delay.h>
-+#include <linux/timer.h>
-+#include <linux/poll.h>
-+#include <linux/proc_fs.h>
-+#include <linux/seq_file.h>
-+#include <linux/sched.h>
-+#include <linux/interrupt.h>
-+#include <linux/irq.h>
-+#include <linux/io.h>
-+#include <linux/clk.h>
 +
 +struct ocp8178_backlight {
 +	struct device *dev;
@@ -202,52 +204,48 @@ index 0000000..db8db17
 +				   struct ocp8178_backlight *gbl)
 +{
 +	struct device *dev = &pdev->dev;
-+	struct device_node *np = dev->of_node;
++	struct device_node *of_node = dev->of_node;
 +	enum gpiod_flags flags;
 +	int ret = 0;
-+	u32 value32;
++	u32 default_brightness;
 +
-+	of_property_read_u32(np, "default-brightness", &value32);
-+	if(value32 > MAX_BRIGHTNESS_VALUE)
++	of_property_read_u32(of_node, "default-brightness", &default_brightness);
++	if(default_brightness > MAX_BRIGHTNESS_VALUE)
 +		gbl->def_value = MAX_BRIGHTNESS_VALUE;
 +	else
-+		gbl->def_value = value32;
++		gbl->def_value = default_brightness;
 +	flags = gbl->def_value ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
 +
 +	gbl->gpiod = devm_gpiod_get(dev, "backlight-control", flags);
 +	if (IS_ERR(gbl->gpiod)) {
 +		ret = PTR_ERR(gbl->gpiod);
-+
-+		if (ret != -EPROBE_DEFER) {
-+			dev_err(dev,
-+				"Error: The gpios parameter is missing or invalid.\n");
-+		}
++		return dev_err_probe(dev, ret,
++			"Error: The backlight-control-gpios parameter is missing or invalid.\n");
 +	}
 +
 +	return ret;
 +}
 +
-+static struct backlight_device *backlight;
-+
 +static int ocp8178_probe(struct platform_device *pdev)
 +{
++	struct device *dev = &pdev->dev;
 +	struct backlight_properties props;
 +	struct backlight_device *bl;
 +	struct ocp8178_backlight *gbl;
-+	struct device_node *np = pdev->dev.of_node;
++	struct device_node *of_node = dev->of_node;
 +	int ret;
 +
-+	if ( !np) {
++	if (!of_node) {
 +		dev_err(&pdev->dev,
 +			"failed to find platform data or device tree node.\n");
 +		return -ENODEV;
 +	}
 +
-+	gbl = devm_kzalloc(&pdev->dev, sizeof(*gbl), GFP_KERNEL);
++	gbl = devm_kzalloc(dev, sizeof(*gbl), GFP_KERNEL);
 +	if (gbl == NULL)
 +		return -ENOMEM;
 +
-+	gbl->dev = &pdev->dev;
++	gbl->dev = dev;
 +
 +	ret = ocp8178_probe_dt(pdev, gbl);
 +	if (ret)
@@ -266,24 +264,10 @@ index 0000000..db8db17
 +		return PTR_ERR(bl);
 +	}
 +
-+//	entry_1wire_mode(gbl);
-+
 +	bl->props.brightness = gbl->def_value;
 +	backlight_update_status(bl);
 +
 +	platform_set_drvdata(pdev, bl);
-+
-+	backlight = bl;
-+	return 0;
-+}
-+
-+static int ocp8178_suspend(struct platform_device *pdev, pm_message_t state)
-+{
-+	return 0;
-+}
-+
-+static int ocp8178_resume(struct platform_device *pdev)
-+{
 +	return 0;
 +}
 +
@@ -300,11 +284,12 @@ index 0000000..db8db17
 +		.of_match_table = of_match_ptr(ocp8178_of_match),
 +	},
 +	.probe		= ocp8178_probe,
-+	.suspend		= ocp8178_suspend,
-+	.resume		= ocp8178_resume,
 +};
 +
 +module_platform_driver(ocp8178_driver);
 +
 +MODULE_DESCRIPTION("OCP8178 Driver");
 +MODULE_LICENSE("GPL");
+-- 
+2.43.0
+
