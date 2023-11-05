@@ -32,7 +32,7 @@ source=("https://github.com/raspberrypi/linux/archive/${_commit}.tar.gz"
 md5sums=('b6d73bfb5b5b93062bf260c8e7212452'
          '03f084a2a758fd718b8cc509d7deafe5'
          '26268df39cf32b70a4dd9ea7b6ca8ae2'
-         'f7758f00fe85e5514cf7ff8efe41bd6f'
+         'f71d3dd3bbf205419c426de30a08326b'
          'c2618540125492c53a4632c3cd65506a'
          '43561c8bdc44ee4eb7f9a935f11baa39'
          '7c81d9dddf2a61518aa97fa6a360cb25'
