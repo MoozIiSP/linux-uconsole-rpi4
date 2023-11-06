@@ -11,8 +11,6 @@ jobs:
     runs-on: self-hosted
     container:
       image: manjarolinux/build
-      volumes:
-        - ./linux-uconsole-rpi4:/build
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
@@ -21,6 +19,8 @@ jobs:
 
       - name: test
         run: |
+          cd /__w/linux-uconsole-rpi4/linux-uconsole-rpi4
+          makepkg -s
           ls
 
       # - name: Pull Manjaro/build
