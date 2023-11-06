@@ -4,11 +4,6 @@ run-name: ${{ github.actor }} is building and releasing NixOS-WSL 🚀
 #on: [push]
 on:
   workflow_dispatch:
-  schedule:
-    # 每年5月/10月编译
-    - cron: '0 0 15 5,11 *'
-  #push:
-  # tags: []
 
 jobs:
   prepare:
@@ -17,7 +12,7 @@ jobs:
     container:
       image: manjarolinux/build
       volumes:
-        - .:/build
+        - ./linux-uconsole-rpi4:/build
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
