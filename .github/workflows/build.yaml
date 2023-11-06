@@ -17,11 +17,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: test
+      - name: build
         run: |
-          # cd /__w/linux-uconsole-rpi4/linux-uconsole-rpi4
-          # makepkg -s
-          ls
+          su - builder -c "makepkg -s"
 
       # - name: Pull Manjaro/build
       #   uses: cachix/install-nix-action@v22
