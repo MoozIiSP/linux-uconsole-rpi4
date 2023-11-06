@@ -19,8 +19,8 @@ jobs:
 
       - name: test
         run: |
-          cd /__w/linux-uconsole-rpi4/linux-uconsole-rpi4
-          makepkg -s
+          # cd /__w/linux-uconsole-rpi4/linux-uconsole-rpi4
+          # makepkg -s
           ls
 
       # - name: Pull Manjaro/build
