@@ -19,7 +19,8 @@ jobs:
 
       - name: build
         run: |
-          pwd
+          cp ./* /builder
+          chown -R builder:builder /builder
           su - builder -c "ls -la"
           su - builder -c "pwd"
           su - builder -c "makepkg -s"
