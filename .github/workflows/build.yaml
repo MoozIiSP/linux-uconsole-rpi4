@@ -19,7 +19,9 @@ jobs:
 
       - name: build
         run: |
+          pwd
           su - builder -c "ls -la"
+          su - builder -c "pwd"
           su - builder -c "makepkg -s"
 
       # - name: Pull Manjaro/build
