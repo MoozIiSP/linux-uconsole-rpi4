@@ -19,6 +19,8 @@ jobs:
 
       - name: build
         run: |
+          echo "https://mirrors.tuna.tsinghua.edu.cn/manjaro/" > /etc/pacman.d/mirrorlist
+          pacman -Syy docbook-xml libxslt bc docbook-xsl inetutils xmlto
           cp ./* /builder
           chown -R builder:builder /builder
           su - builder -c "ls -la"
