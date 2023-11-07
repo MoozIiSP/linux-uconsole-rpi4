@@ -19,7 +19,7 @@ jobs:
 
       - name: build
         run: |
-          pacman-mirrors -i -c China
+          pacman-mirrors -m rank
           pacman -Syy docbook-xml libxslt bc docbook-xsl inetutils xmlto
           cp ./* /builder
           chown -R builder:builder /builder
