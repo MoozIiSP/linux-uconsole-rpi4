@@ -19,7 +19,7 @@ jobs:
 
       - name: build
         run: |
-          echo "Server = https://mirrors.tuna.tsinghua.edu.cn/manjaro/arm-stable/$repo/$arch" > /etc/pacman.d/mirrorlist
+          pacman-mirrors -i -c China -m rank
           pacman -Syy docbook-xml libxslt bc docbook-xsl inetutils xmlto
           cp ./* /builder
           chown -R builder:builder /builder
