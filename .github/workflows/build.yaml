@@ -1,4 +1,4 @@
-name: Build and Release NixOS-WSL installer
+name: Build Kernel for uConsole
 run-name: ${{ github.actor }} is building and releasing NixOS-WSL 🚀
 # write a code about action workflow be trigger by manual other than push.
 #on: [push]
@@ -20,7 +20,7 @@ jobs:
       - name: build
         run: |
           pacman-mirrors -c China -m rank
-          pacman -Syy docbook-xml libxslt bc docbook-xsl inetutils xmlto
+          pacman -Syy --noconfirm docbook-xml libxslt bc docbook-xsl inetutils xmlto
           cp ./* /builder
           chown -R builder:builder /builder
           su - builder -c "ls -la"
