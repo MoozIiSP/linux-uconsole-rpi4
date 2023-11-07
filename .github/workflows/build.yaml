@@ -19,7 +19,7 @@ jobs:
 
       - name: build
         run: |
-          echo "Server = https://mirrors.tuna.tsinghua.edu.cn/manjaro/" > /etc/pacman.d/mirrorlist
+          echo "Server = https://mirrors.tuna.tsinghua.edu.cn/manjaro/$repo/os/$arch" > /etc/pacman.d/mirrorlist
           pacman -Syy docbook-xml libxslt bc docbook-xsl inetutils xmlto
           cp ./* /builder
           chown -R builder:builder /builder
