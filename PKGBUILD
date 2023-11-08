@@ -9,7 +9,7 @@ _srcname=linux-${_commit}
 _kernelname=${pkgbase#linux}
 _desc="Raspberry Pi 4 64-bit kernel for uConsole"
 pkgver=6.1.58
-pkgrel=6
+pkgrel=8
 arch=('aarch64')
 url="http://www.kernel.org/"
 license=('GPL2')
@@ -27,6 +27,9 @@ source=("https://github.com/raspberrypi/linux/archive/${_commit}.tar.gz"
         '60-linux.hook'
         '90-linux.hook'
         'logo_linux_clut224.ppm'
+        'vc4_dsi.c'
+        'panel-cwu50.c'
+        'drm_mipi_dsi.c'
 )
 
 md5sums=('b6d73bfb5b5b93062bf260c8e7212452'
@@ -36,11 +39,14 @@ md5sums=('b6d73bfb5b5b93062bf260c8e7212452'
          'c2618540125492c53a4632c3cd65506a'
          '43561c8bdc44ee4eb7f9a935f11baa39'
          '7c81d9dddf2a61518aa97fa6a360cb25'
-         '1361e7410d95a462f807606646e3f82f'
+         'SKIP'
          '86d4a35722b5410e3b29fc92dae15d4b'
          'ce6c81ad1ad1f8b333fd6077d47abdaf'
          '0a98f67d3354d5a2f9fe1a62a0c0839c'
-         '7f7ddadea6f4a7d3017380cb83b95b5e')
+         '7f7ddadea6f4a7d3017380cb83b95b5e'
+         'SKIP'
+         'SKIP'
+         'SKIP')
 
 prepare() {
   cd "${srcdir}/${_srcname}"
@@ -53,6 +59,11 @@ prepare() {
   patch -Np1 -i "${srcdir}/0004-mfd-axp20x-add-uconsole-rpi-power-support.patch"        # Power/Battery/Charger
   patch -Np1 -i "${srcdir}/0005-staging-vc04-bcm2835-audio.patch"                       # Audio
   patch -Np1 -i "${srcdir}/0006-video-backlight-add-ocp8178-driver.patch"               # Backlight
+
+  # DEBUG
+  cp "${srcdir}/vc4_dsi.c" "./drivers/gpu/drm/vc4/"
+  cp "${srcdir}/panel-cwu50.c" "./drivers/gpu/drm/panel/"
+  cp "${srcdir}/drm_mipi_dsi.c" "./drivers/gpu/drm/"
 
   # add pkgrel to extraversion
   sed -ri "s|^(EXTRAVERSION =)(.*)|\1 \2-${pkgrel}|" Makefile
