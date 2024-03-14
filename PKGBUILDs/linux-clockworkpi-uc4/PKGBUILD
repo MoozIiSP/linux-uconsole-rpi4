@@ -1,9 +1,9 @@
 pkgbase=linux-clockworkpi-uc4
-_commit=bfe927647253ab3a86be16320baa1579518c6786
+_commit=d3d24545684c6b6637603e14443bbd67dae59413
 _srcname=linux-${_commit}
 _kernelname=${pkgbase#linux}
 _desc="Raspberry Pi 4 64-bit kernel for uConsole"
-pkgver=6.1.73
+pkgver=6.6.21
 pkgrel=1
 arch=('aarch64')
 url="http://www.kernel.org/"
