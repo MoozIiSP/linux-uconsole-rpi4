@@ -580,7 +580,7 @@ index 000000000000..8eb7ec1afcbe
 +	 * Maybe need to move part of the init sequence to cwu50_enable() instead of
 +	 * keeping them in cwu50_prepare().
 +	 */
-+	ctx->panel.prepare_upstream_first = true;
++	ctx->panel.prepare_prev_first = true;
 +
 +	drm_panel_init(&ctx->panel, dev, &cwu50_drm_funcs, DRM_MODE_CONNECTOR_DSI);
 +

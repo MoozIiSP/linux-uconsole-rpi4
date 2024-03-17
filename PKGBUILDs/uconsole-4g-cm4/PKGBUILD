@@ -13,6 +13,6 @@ md5sums=('SKIP'
 package() {
 	cd "$srcdir"
 
-	install -Dm755 uconsole-4g-cm4 "/usr/local/bin/uconsole-4g-cm4"
-	install -Dm644 "$srcdir/uconsole-4g-cm4.service" "/usr/lib/systemd/system/uconsole-4g-cm4.service"
+	install -Dm755 "$srcdir/uconsole-4g-cm4" "${pkgdir}/usr/local/bin/uconsole-4g-cm4"
+	install -Dm644 "$srcdir/uconsole-4g-cm4.service" "${pkgdir}/usr/lib/systemd/system/uconsole-4g-cm4.service"
 }

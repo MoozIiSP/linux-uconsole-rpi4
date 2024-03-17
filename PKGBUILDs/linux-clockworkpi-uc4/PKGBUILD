@@ -1,4 +1,4 @@
-pkgbase=linux-clockworkpi-uc4
+ pkgbase=linux-clockworkpi-uc4
 _commit=d3d24545684c6b6637603e14443bbd67dae59413
 _srcname=linux-${_commit}
 _kernelname=${pkgbase#linux}
@@ -167,7 +167,8 @@ _package() {
     install -Dm644 /dev/stdin "${pkgdir}/usr/lib/modules/${_extramodules}/version"
 
   # remove build and source links
-  rm "${pkgdir}"/usr/lib/modules/${_kernver}/{source,build}
+  #rm "${pkgdir}"/usr/lib/modules/${_kernver}/{source,build}
+  rm "${pkgdir}"/usr/lib/modules/${_kernver}/build
 
   # now we call depmod...
   depmod -b "${pkgdir}/usr" -F System.map "${_kernver}"

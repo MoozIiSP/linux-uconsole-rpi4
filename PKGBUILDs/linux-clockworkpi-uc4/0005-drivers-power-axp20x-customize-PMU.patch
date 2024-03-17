@@ -11,53 +11,6 @@ power off callback to kernel. Mostly harmless.
  drivers/power/supply/axp20x_battery.c  | 44 ++++++++++++++++++++++++++
  3 files changed, 69 insertions(+)
 
-diff --git a/drivers/mfd/axp20x.c b/drivers/mfd/axp20x.c
-index 880c41fa7021..27c2000badc7 100644
---- a/drivers/mfd/axp20x.c
-+++ b/drivers/mfd/axp20x.c
-@@ -24,6 +24,7 @@
- #include <linux/module.h>
- #include <linux/of_device.h>
- #include <linux/pm_runtime.h>
-+#include <linux/reboot.h>
- #include <linux/regmap.h>
- #include <linux/regulator/consumer.h>
- 
-@@ -845,6 +846,21 @@ static void axp20x_power_off(void)
- 	mdelay(500);
- }
- 
-+static int axp20x_power_off_handler(struct sys_off_data *data)
-+{
-+	struct axp20x_dev *device = data->cb_data;
-+
-+	if (device->variant == AXP288_ID)
-+		return NOTIFY_DONE;
-+
-+	regmap_write(device->regmap, AXP20X_OFF_CTRL, AXP20X_OFF);
-+
-+	/* Give capacitors etc. time to drain to avoid kernel panic msg. */
-+	mdelay(500);
-+
-+	return NOTIFY_DONE;
-+}
-+
- int axp20x_match_device(struct axp20x_dev *axp20x)
- {
- 	struct device *dev = axp20x->dev;
-@@ -1012,6 +1028,12 @@ int axp20x_device_probe(struct axp20x_dev *axp20x)
- 	if (!pm_power_off) {
- 		axp20x_pm_power_off = axp20x;
- 		pm_power_off = axp20x_power_off;
-+	} else {
-+		/* register power off handler */
-+		ret = devm_register_power_off_handler(axp20x->dev, axp20x_power_off_handler, axp20x);
-+		if (ret) {
-+			dev_warn(axp20x->dev, "Failed to register power off handler! (%d)", ret);
-+		}
- 	}
- 
- 	dev_info(axp20x->dev, "AXP20X driver loaded\n");
 diff --git a/drivers/power/supply/axp20x_ac_power.c b/drivers/power/supply/axp20x_ac_power.c
 index 57e50208d537..ce7ad453201c 100644
 --- a/drivers/power/supply/axp20x_ac_power.c
