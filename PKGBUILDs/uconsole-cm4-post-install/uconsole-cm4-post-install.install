@@ -1,21 +1,15 @@
 post_install() {
-  # Define root partitions partuuid
-  PART_DEV=`findmnt / -o source -n | cut -f1 -d"["`
-  PART_NAME=`echo $PART_DEV | cut -d "/" -f 3`
-  ROOT_PART=$(blkid | grep "${PART_NAME}" | awk -F '"' '{print $4}')
-  FSTYPE=$(blkid | grep "${PART_NAME}" | awk -F '"' '{print $10}')
-  
     # Enable services
     systemctl enable stop-dmesg.service
 
     # Edit mkinitcpio.conf
     echo "Editing mkinitcpio.conf..."
-    sed -i s/"MODULES=()"/"MODULES=(vc4 btrfs)"/g /etc/mkinitcpio.conf
+    sed -i s/"MODULES=()"/"MODULES=(vc4)"/g /etc/mkinitcpio.conf
 
     # Edit cmdline.txt
     echo "Editing cmdline.txt..."
-    sed -i s!"plymouth.enable=0"!"quiet splash plymouth.ignore-serial-consoles"!g /boot/cmdline.txt
-    sed -i s!"console=tty1"!"console=tty3"!g /boot/cmdline.txt
+    echo "rootflags=subvol=@ root=/dev/mmcblk0p2 rootfstype=btrfs console=tty3 rw rootwait loglevel=3 cpufreq.default_governor=schedutil" > /boot/cmdline.txt
+    #sed -i s!"plymouth.enable=0"!"quiet splash plymouth.ignore-serial-consoles"!g /boot/cmdline.txt
 
     # Edit config.txt
     #echo "Editing config.txt..."
