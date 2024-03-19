@@ -13,11 +13,11 @@ index 04a9c9a8ab90..ddd90f3f087d 100644
  	udrc.dtbo \
  	ugreen-dabboard.dtbo \
  	upstream.dtbo \
-diff --git a/arch/arm/boot/dts/overlays/uconsole.dts b/arch/arm/boot/dts/overlays/uconsole.dts
+diff --git a/arch/arm/boot/dts/overlays/uconsole-overlay.dts b/arch/arm/boot/dts/overlays/uconsole-overlay.dts
 new file mode 100644
 index 000000000000..bfc12f7a029b
 --- /dev/null
-+++ b/arch/arm/boot/dts/overlays/uconsole.dts
++++ b/arch/arm/boot/dts/overlays/uconsole-overlay.dts
 @@ -0,0 +1,233 @@
 +/dts-v1/;
 +/plugin/;
