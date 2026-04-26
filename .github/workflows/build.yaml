@@ -12,6 +12,7 @@ jobs:
     runs-on: self-hosted
     container:
       image: manjarolinux/build
+    timeout-minutes: 240
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -29,10 +30,12 @@ jobs:
           cp -r ./* /builder/
           chown -R builder:builder /builder
           su - builder -c "cd /builder && makepkg -s --noconfirm"
-          cp /builder/*.pkg.tar.* ./
+          # Copy built packages back to workspace for upload
+          cp /builder/*.pkg.tar.zst "${GITHUB_WORKSPACE}/PKGBUILDs/linux-clockworkpi-uc4/" 2>/dev/null || true
 
       - name: Upload kernel package
         uses: actions/upload-artifact@v4
         with:
           name: linux-clockworkpi-uc4
           path: PKGBUILDs/linux-clockworkpi-uc4/*.pkg.tar.*
+          retention-days: 30
