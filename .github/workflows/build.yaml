@@ -1,68 +1,38 @@
 name: Build Kernel for uConsole
-run-name: ${{ github.actor }} is building and releasing NixOS-WSL 🚀
-# write a code about action workflow be trigger by manual other than push.
-#on: [push]
+run-name: ${{ github.actor }} is building uConsole CM4 Kernel 🚀
+
 on:
+  push:
+    branches: [master, main]
   workflow_dispatch:
 
 jobs:
-  prepare:
-    name: Prepare 🚀
+  build:
+    name: Build 🚀
     runs-on: self-hosted
     container:
       image: manjarolinux/build
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: build
+      - name: Install build dependencies
         run: |
           pacman-mirrors -c China -m rank
           pacman -Syy --noconfirm docbook-xml libxslt bc docbook-xsl inetutils xmlto
-          cp ./* /builder
+
+      - name: Build linux-clockworkpi-uc4
+        run: |
+          cd PKGBUILDs/linux-clockworkpi-uc4
+          cp -r ./* /builder/
           chown -R builder:builder /builder
-          su - builder -c "ls -la"
-          su - builder -c "pwd"
-          su - builder -c "makepkg -s"
+          su - builder -c "cd /builder && makepkg -s --noconfirm"
+          cp /builder/*.pkg.tar.* ./
 
-      # - name: Pull Manjaro/build
-      #   uses: cachix/install-nix-action@v22
-      #   with:
-      #     extra_nix_config: 'access-tokens = github.com=${{ github.token }}'
-
-      # - name: Make package
-      #   id: version
-      #   run: |
-      #     TAG_COUNT=$(git rev-list --tags --no-walk --count)                                                                 # Count all tags
-      #     COMMIT_COUNT=$(git rev-list --use-bitmap-index --count $(git rev-list --tags --no-walk --max-count=1)..HEAD)       # Count all commits since the last tag
-      #     NIXOS_VERSION=$(nix-instantiate --eval -E '(import ./.).inputs.nixpkgs.lib.version' | sed -E 's/"(.+\...).*"/\1/') # Get NixOS version from nixpkgs
-      #     NIXOS_VERSION_MS=$(echo $NIXOS_VERSION | sed -E 's/\.0*(.+)/\.\1/')                                                # Remove the leading 0 from the minor version (if it exists)
-      #     NIXOS_WSL_VERSION=${NIXOS_VERSION_MS}.${TAG_COUNT}.${COMMIT_COUNT}                                                 # Compose the NixOS-WSL version number
-      #     echo "version=$NIXOS_WSL_VERSION" >> $GITHUB_OUTPUT
-
-      # - name: Upload installer 📤
-      #   uses: actions/upload-artifact@v3.1.2
-      #   with:
-      #     name: installer
-      #     path: result/tarball/nixos-wsl-installer.tar.gz*
-
-      # - uses: stefanzweifel/git-auto-commit-action@v4.16.0
-      #   if: ${{ success() }}
-      #   with:
-      #     commit_message: 'automation: update flake.lock'
-      #     file_pattern: 'flake.lock'
-
-      # - name: Create release 📢
-      #   id: create_release
-      #   uses: ncipollo/release-action@v1.12.0
-      #   with:
-      #     name: nixos-wsl-installer.tar.gz
-      #     allowUpdates: true
-      #     prerelease: false
-      #     tag: ${{ steps.version.outputs.version }}
-      #     #commit: 23.05
-      #     replacesArtifacts: true
-      #     token: ${{ secrets.GITHUB_TOKEN }}
-      #     artifacts: result/tarball/nixos-wsl-installer.tar.gz*
+      - name: Upload kernel package
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-clockworkpi-uc4
+          path: PKGBUILDs/linux-clockworkpi-uc4/*.pkg.tar.*
