@@ -3,7 +3,7 @@ run-name: ${{ github.actor }} is building uConsole CM4 Kernel 🚀
 
 on:
   push:
-    branches: [master, main]
+    branches: [rpi-6.1.y, rpi-6.6.y, rpi-*.y]
   workflow_dispatch:
 
 jobs:
@@ -30,7 +30,6 @@ jobs:
           cp -r ./* /builder/
           chown -R builder:builder /builder
           su - builder -c "cd /builder && makepkg -s --noconfirm"
-          # Copy built packages back to workspace for upload
           cp /builder/*.pkg.tar.zst "${GITHUB_WORKSPACE}/PKGBUILDs/linux-clockworkpi-uc4/" 2>/dev/null || true
 
       - name: Upload kernel package
