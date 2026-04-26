@@ -45,14 +45,14 @@ index 000000000000..303e2e26a0b1
 @@ -0,0 +1,10 @@
 +# SPDX-License-Identifier: GPL-2.0
 +config SIMPLE_AMPLIFIER_SWITCH
-+    tristate "Simple amplifier switch driver"
-+    depends on OF
-+    depends on GPIOLIB
-+    default n
-+    help
-+        Driver for simple gpio based switches. This can control a series of
-+        gpios with another one. Used to control amplifiers with headphone
-+        detect pin on uConsole.
++	tristate "Simple amplifier switch driver"
++	depends on OF
++	depends on GPIOLIB
++	default n
++	help
++	  Driver for simple gpio based switches. This can control a series of
++	  gpios with another one. Used to control amplifiers with headphone
++	  detect pin on uConsole.
 diff --git a/drivers/staging/uconsole/Makefile b/drivers/staging/uconsole/Makefile
 new file mode 100644
 index 000000000000..8f3239c1f36c

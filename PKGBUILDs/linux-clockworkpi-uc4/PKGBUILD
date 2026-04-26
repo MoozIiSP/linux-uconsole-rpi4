@@ -1,4 +1,4 @@
- pkgbase=linux-clockworkpi-uc4
+pkgbase=linux-clockworkpi-uc4
 _commit=d3d24545684c6b6637603e14443bbd67dae59413
 _srcname=linux-${_commit}
 _kernelname=${pkgbase#linux}
