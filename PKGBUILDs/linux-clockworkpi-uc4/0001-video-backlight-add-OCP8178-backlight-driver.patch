@@ -280,6 +280,3 @@ index 000000000..2b0d1b159
 +
 +MODULE_DESCRIPTION("OCP8178 Driver");
 +MODULE_LICENSE("GPL");
--- 
-2.50.1 (Apple Git-155)
-
