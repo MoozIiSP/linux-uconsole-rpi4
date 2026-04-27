@@ -9,7 +9,6 @@ arch=('aarch64')
 url="http://www.kernel.org/"
 license=('GPL2')
 makedepends=('xmlto' 'docbook-xsl' 'kmod' 'inetutils' 'bc' 'git')
-options=('!strip')
 source=("https://github.com/raspberrypi/linux/archive/${_commit}.tar.gz"
         '0001-video-backlight-add-OCP8178-backlight-driver.patch'
         '0002-drm-panel-add-clockwork-cwu50.patch'
