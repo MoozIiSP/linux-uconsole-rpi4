@@ -4,6 +4,8 @@ run-name: ${{ github.actor }} is building uConsole CM4 Kernel 🚀
 on:
   push:
     branches: [rpi-6.1.y, rpi-6.6.y, rpi-*.y]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -13,6 +15,9 @@ jobs:
     container:
       image: manjarolinux/build
     timeout-minutes: 240
+    outputs:
+      pkg_version: ${{ steps.version.outputs.version }}
+      pkg_file: ${{ steps.version.outputs.file }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -32,9 +37,36 @@ jobs:
           su - builder -c "cd /builder && makepkg -s --noconfirm"
           cp /builder/*.pkg.tar.zst "${GITHUB_WORKSPACE}/PKGBUILDs/linux-clockworkpi-uc4/" 2>/dev/null || true
 
-      - name: Upload kernel package
+      - name: Extract version info
+        id: version
+        run: |
+          cd PKGBUILDs/linux-clockworkpi-uc4
+          PKG_FILE=$(ls *.pkg.tar.* 2>/dev/null | head -1)
+          PKG_VER=$(echo "$PKG_FILE" | grep -oP '(?<=linux-clockworkpi-uc4-).*(?=\.pkg\.tar)')
+          echo "version=${PKG_VER:-${{ github.sha }}}" >> $GITHUB_OUTPUT
+          echo "file=${PKG_FILE}" >> $GITHUB_OUTPUT
+
+      - name: Upload kernel package (Artifact)
         uses: actions/upload-artifact@v4
         with:
           name: linux-clockworkpi-uc4
           path: PKGBUILDs/linux-clockworkpi-uc4/*.pkg.tar.*
           retention-days: 30
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', steps.version.outputs.version) }}
+          name: uConsole Kernel ${{ steps.version.outputs.version }}
+          body: |
+            ## uConsole CM4 Kernel Build
+            - **Branch**: ${{ github.ref_name }}
+            - **Commit**: ${{ github.sha }}
+            - **Built**: ${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
+            - **Kernel**: AXP228 PMIC support, JD9365D panel, OCP8178 backlight
+          files: PKGBUILDs/linux-clockworkpi-uc4/*.pkg.tar.*
+          draft: false
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
