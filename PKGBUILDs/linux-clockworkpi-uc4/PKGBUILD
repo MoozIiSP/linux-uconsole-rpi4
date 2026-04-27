@@ -25,7 +25,7 @@ source=("https://github.com/raspberrypi/linux/archive/${_commit}.tar.gz"
         'logo_linux_clut224.ppm'
 )
 
-md5sums=('SKIP'
+md5sums=('9a6719cf0d1ef86b4ece7f4d87fb91e3'
          'SKIP'
          'SKIP'
          'SKIP'
@@ -137,8 +137,8 @@ _package() {
   optdepends=('wireless-regdb: Set the correct wireless channels of your country'
               'linux-firmware: Extra firmware not provided by RPi or kernel'
 	      'ap6256-firmware: WIFI&BT firmware, replaces brcmfmac43456-firmware and firmware-raspberrypi on uConsole')
-  provides=('kernel26' "linux=${pkgver}")
-  conflicts=('kernel26' 'linux' 'uboot-raspberrypi' 'rpi-overlays')
+  provides=("linux=${pkgver}")
+  conflicts=('linux' 'uboot-raspberrypi' 'rpi-overlays')
   backup=("etc/mkinitcpio.d/${pkgbase}.preset")
   install=${pkgname}.install
   replaces=('linux-raspberrypi-latest')
@@ -190,7 +190,7 @@ _package-headers() {
   conflicts=('linux-headers')
   replaces=('linux-raspberrypi-latest-headers')
 
-  cd ${_srcname}
+  cd "${_srcname}"
   local _builddir="${pkgdir}/usr/lib/modules/${_kernver}/build"
 
   echo "Installing build files..."
