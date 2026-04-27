@@ -1,20 +1,19 @@
 From: MoozIiSP <mooziisp@example.com>
-Subject: [PATCH] power: axp20x: Adapt for AXP228 and improve power management
+Subject: [PATCH] power: axp20x: AXP228 safe config and energy reporting
 
-- Remove fake AXP288 fuel gauge register reads (not supported on AXP228)
-- Calculate ENERGY_NOW using percentage * design_capacity (from DT)
-- Add pm_power_off handler to cut power on shutdown (write 0x80 to 0x32)
-- Configure PEK (Power Key) for 4s long-press shutdown
-- Configure charging LED to follow charge status
-- Do not limit IPSOUT current
+- Remove risky AXP288 register reads (incompatible with AXP228)
+- Calculate ENERGY_NOW using (percentage * design_capacity) / 100
+- Configure IPSOUT and Charge LED
+- Load energy_full_design from Device Tree
+- Add CALIBRATE support via sysfs
 
 ---
  drivers/power/supply/axp20x_ac_power.c |   3 +
- drivers/power/supply/axp20x_battery.c  |  85 +++++++++++++++++++++++++++---
- 2 files changed, 80 insertions(+), 8 deletions(-)
+ drivers/power/supply/axp20x_battery.c  |  92 +++++++++++++++++++++++++--
+ 2 files changed, 89 insertions(+), 6 deletions(-)
 
---- a/drivers/power/supply/axp20x_ac_power.c	2026-04-27 16:06:29
-+++ b/drivers/power/supply/axp20x_ac_power.c	2026-04-27 16:06:29
+--- a/drivers/power/supply/axp20x_ac_power.c	2026-04-27 18:23:41
++++ b/drivers/power/supply/axp20x_ac_power.c	2026-04-27 18:23:41
 @@ -52,6 +52,9 @@
  {
  	struct axp20x_ac_power *power = devid;
@@ -26,8 +25,8 @@ Subject: [PATCH] power: axp20x: Adapt for AXP228 and improve power management
  
  	return IRQ_HANDLED;
 
---- a/drivers/power/supply/axp20x_battery.c	2026-04-27 16:06:29
-+++ b/drivers/power/supply/axp20x_battery.c	2026-04-27 17:48:53
+--- a/drivers/power/supply/axp20x_battery.c	2026-04-27 18:23:41
++++ b/drivers/power/supply/axp20x_battery.c	2026-04-27 18:23:41
 @@ -42,6 +42,10 @@
  #define AXP20X_PWR_OP_BATT_ACTIVATED	BIT(3)
  #define AXP717_PWR_OP_BATT_PRESENT	BIT(3)
@@ -39,17 +38,7 @@ Subject: [PATCH] power: axp20x: Adapt for AXP228 and improve power management
  #define AXP717_BATT_PMU_FAULT_MASK	GENMASK(2, 0)
  #define AXP717_BATT_UVLO_2_5V		BIT(2)
  #define AXP717_BATT_OVER_TEMP		BIT(1)
-@@ -57,6 +61,9 @@
- #define AXP20X_CHRG_CTRL1_TGT_4_2V	(2 << 5)
- #define AXP20X_CHRG_CTRL1_TGT_4_36V	(3 << 5)
- 
-+/* Static pointer for power off callback */
-+static struct axp20x_batt_ps *axp_poweroff_dev;
-+
- #define AXP22X_CHRG_CTRL1_TGT_4_22V	(1 << 5)
- #define AXP22X_CHRG_CTRL1_TGT_4_24V	(3 << 5)
- 
-@@ -118,6 +125,7 @@
+@@ -118,6 +122,7 @@
  	struct iio_channel *batt_v;
  	/* Maximum constant charge current */
  	unsigned int max_ccc;
@@ -57,11 +46,10 @@ Subject: [PATCH] power: axp20x: Adapt for AXP228 and improve power management
  	const struct axp_data	*data;
  	bool ts_disable;
  };
-@@ -394,8 +402,35 @@
- 		 * directly the raw percentage without any scaling to 7 bits.
+@@ -395,7 +400,35 @@
  		 */
  		val->intval = reg & AXP209_FG_PERCENT;
-+		break;
+ 		break;
 +
 +	case POWER_SUPPLY_PROP_ENERGY_FULL:
 +		val->intval = axp20x_batt->energy_full_design;
@@ -72,6 +60,7 @@ Subject: [PATCH] power: axp20x: Adapt for AXP228 and improve power management
 +		ret = regmap_read(axp20x_batt->regmap, AXP20X_PWR_OP_MODE, &reg);
 +		if (ret)
 +			return ret;
+ 
 +		if (!(reg & AXP20X_PWR_OP_BATT_PRESENT)) {
 +			val->intval = 0;
 +			return 0;
@@ -84,8 +73,8 @@ Subject: [PATCH] power: axp20x: Adapt for AXP228 and improve power management
 +		reg = reg & AXP209_FG_PERCENT;
 +		reg = max(min(reg, 100), 0);
 +		val->intval = (reg * ((long long int)(axp20x_batt->energy_full_design))) / 100;
- 		break;
- 
++		break;
++
 +	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
 +		val->intval = axp20x_batt->energy_full_design;
 +		break;
@@ -93,7 +82,7 @@ Subject: [PATCH] power: axp20x: Adapt for AXP228 and improve power management
  	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
  		return axp20x_batt->data->get_max_voltage(axp20x_batt,
  							  &val->intval);
-@@ -551,6 +586,30 @@
+@@ -551,6 +584,31 @@
  		val->intval = reg & AXP209_FG_PERCENT;
  		return 0;
  
@@ -105,6 +94,7 @@ Subject: [PATCH] power: axp20x: Adapt for AXP228 and improve power management
 +		ret = regmap_read(axp20x_batt->regmap, AXP20X_PWR_OP_MODE, &reg);
 +		if (ret)
 +			return ret;
++
 +		if (!FIELD_GET(AXP717_PWR_OP_BATT_PRESENT, reg)) {
 +			val->intval = 0;
 +			return 0;
@@ -124,7 +114,7 @@ Subject: [PATCH] power: axp20x: Adapt for AXP228 and improve power management
  	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
  		return axp20x_batt->data->get_max_voltage(axp20x_batt,
  							  &val->intval);
-@@ -770,6 +829,7 @@
+@@ -770,6 +828,7 @@
  				   const union power_supply_propval *val)
  {
  	struct axp20x_batt_ps *axp20x_batt = power_supply_get_drvdata(psy);
@@ -132,7 +122,7 @@ Subject: [PATCH] power: axp20x: Adapt for AXP228 and improve power management
  
  	switch (psp) {
  	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
-@@ -806,6 +866,7 @@
+@@ -806,6 +865,7 @@
  				   const union power_supply_propval *val)
  {
  	struct axp20x_batt_ps *axp20x_batt = power_supply_get_drvdata(psy);
@@ -140,7 +130,7 @@ Subject: [PATCH] power: axp20x: Adapt for AXP228 and improve power management
  
  	switch (psp) {
  	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
-@@ -872,7 +933,8 @@
+@@ -872,7 +932,8 @@
  	       psp == POWER_SUPPLY_PROP_VOLTAGE_MIN ||
  	       psp == POWER_SUPPLY_PROP_VOLTAGE_MAX ||
  	       psp == POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT ||
@@ -150,7 +140,7 @@ Subject: [PATCH] power: axp20x: Adapt for AXP228 and improve power management
  }
  
  static int axp717_battery_prop_writeable(struct power_supply *psy,
-@@ -881,7 +943,8 @@
+@@ -881,7 +942,8 @@
  	return psp == POWER_SUPPLY_PROP_STATUS ||
  	       psp == POWER_SUPPLY_PROP_VOLTAGE_MIN ||
  	       psp == POWER_SUPPLY_PROP_VOLTAGE_MAX ||
@@ -160,63 +150,35 @@ Subject: [PATCH] power: axp20x: Adapt for AXP228 and improve power management
  }
  
  static const struct power_supply_desc axp209_batt_ps_desc = {
-@@ -1126,10 +1189,46 @@
- 			PTR_ERR(axp20x_batt->batt));
- 		return PTR_ERR(axp20x_batt->batt);
+@@ -1132,6 +1194,31 @@
+ 		power_supply_put_battery_info(axp20x_batt->batt, info);
  	}
-+
-+	if (!power_supply_get_battery_info(axp20x_batt->batt, &info)) {
-+		axp20x_batt->data->set_bat_info(pdev, axp20x_batt, info);
-+		power_supply_put_battery_info(axp20x_batt->batt, info);
-+	}
-+
-+
-+/* Power-off callback for AXP228/209
-+ * Sets SOFT_POWER_OFF bit in OFF_CTRL register to cut all power
-+ */
-+static void axp20x_power_off(void)
-+{
-+	if (axp_poweroff_dev)
-+		regmap_update_bits(axp_poweroff_dev->regmap, AXP20X_OFF_CTRL, 0x80, 0x80);
-+}
-+
+ 
 +	/* Do not limit IPSOUT current */
 +	regmap_update_bits(axp20x_batt->regmap, AXP20X_VBUS_IPSOUT_MGMT, 0x03, 0x03);
- 
-+	/* Configure Charge LED: Controlled by charge status (Bit 4-5: 01) */
-+	regmap_update_bits(axp20x_batt->regmap, AXP20X_CHRG_CTRL2, 0x30, 0x10);
 +
-+	/* Configure Power Extension Key (PEK): Long press 4s to shutdown */
-+	/* Register 0x36: Bits 4-5 set to 01 (4s shutdown) */
-+	regmap_update_bits(axp20x_batt->regmap, AXP20X_PEK_KEY, 0x30, 0x10);
++	/* Set charge LED controlled by charge module */
++	regmap_update_bits(axp20x_batt->regmap, AXP20X_OFF_CTRL, 0x08, 0x08);
++	
++	/* Full charge output, charge led function type */
++	regmap_update_bits(axp20x_batt->regmap, AXP20X_CHRG_CTRL2, 0x30, 0x20);
 +
 +	/* Load energy_full_design from DT */
- 	if (!power_supply_get_battery_info(axp20x_batt->batt, &info)) {
- 		axp20x_batt->data->set_bat_info(pdev, axp20x_batt, info);
++	if (!power_supply_get_battery_info(axp20x_batt->batt, &info)) {
++		axp20x_batt->data->set_bat_info(pdev, axp20x_batt, info);
 +		if (info->energy_full_design_uwh != -EINVAL) {
 +			axp20x_batt->energy_full_design = info->energy_full_design_uwh;
 +		} else if (info->charge_full_design_uah != -EINVAL) {
 +			/* Assume standard Li-ion voltage 3.7V for conversion */
 +			axp20x_batt->energy_full_design = (info->charge_full_design_uah * 3700) / 1000;
 +		} else {
-+			axp20x_batt->energy_full_design = 12000000; /* Default 12Wh for typical 18650 */
++			axp20x_batt->energy_full_design = 12000000; /* Default 12Wh */
 +		}
- 		power_supply_put_battery_info(axp20x_batt->batt, info);
++		power_supply_put_battery_info(axp20x_batt->batt, info);
 +	} else {
 +		axp20x_batt->energy_full_design = 12000000; /* Fallback default */
- 	}
- 
- 	/*
-@@ -1138,6 +1237,12 @@
- 	 */
- 	axp20x_get_constant_charge_current(axp20x_batt, &axp20x_batt->max_ccc);
- 
-+	/* Register Power-off Handler */
-+	if (!pm_power_off) {
-+		axp_poweroff_dev = axp20x_batt;
-+		pm_power_off = (void (*)(void))axp20x_power_off;
 +	}
 +
- 	return 0;
- }
- 
+ 	/*
+ 	 * Update max CCC to a valid value if battery info is present or set it
+ 	 * to current register value by default.
