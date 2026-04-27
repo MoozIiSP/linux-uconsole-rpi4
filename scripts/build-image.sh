@@ -58,8 +58,9 @@ if [ -z "$IMG_FILE" ]; then
     exit 1
 fi
 
-# Compress to save space on artifacts
-BASENAME=$(basename "$IMG_FILE")
-zstd -19 "$IMG_FILE" -o "$OUT_DIR/${BASENAME}.zst"
+# Compress with high compression ratio (xz -9)
+# This takes longer but significantly reduces download size
+BASENAME=$(basename "$IMG_FILE" .img)
+xz -9 -T0 "$IMG_FILE" -c > "$OUT_DIR/${BASENAME}.img.xz"
 
-echo "==> Success! Image: $OUT_DIR/${BASENAME}.zst"
+echo "==> Success! Image: $OUT_DIR/${BASENAME}.img.xz"

@@ -104,7 +104,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', needs.build.outputs.pkg_version) }}
-          files: ./release/*.img.zst
+          files: ./release/*.img.xz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -112,5 +112,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: manjaro-arm-uconsole-cm4
-          path: ./release/*.img.zst
+          path: ./release/*.img.xz
           retention-days: 30
