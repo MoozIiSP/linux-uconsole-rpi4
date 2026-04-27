@@ -60,11 +60,16 @@ jobs:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', steps.version.outputs.version) }}
           name: uConsole Kernel ${{ steps.version.outputs.version }}
           body: |
-            ## uConsole CM4 Kernel Build
-            - **Branch**: ${{ github.ref_name }}
-            - **Commit**: ${{ github.sha }}
-            - **Built**: ${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
-            - **Kernel**: AXP228 PMIC support, JD9365D panel, OCP8178 backlight
+            ## uConsole CM4 Kernel Build — Pre-release
+            ### 📦 Key Features
+            - **AXP228 PMIC Support**: Battery energy reporting via `(percentage * capacity) / 100`, safe IPSOUT current configuration, charge LED control, and calibration sysfs interface.
+            - **JD9365D Panel Driver**: Clockworkpi CWU50 display support with DSI error status exposure.
+            - **OCP8178 Backlight**: I2C backlight control driver for uConsole screen brightness.
+            - **Clean DTS Overlays**: Removed accidental netfilter pollution, pure device tree overlay for CM4.
+            ### ⚠️ Notes
+            - IPSOUT current set to conservative 1200mA (`0x03`). May need adjustment to `0x07` (2000mA) if 4G module causes power drops under load.
+            - Suspend/Wake support planned for next iteration.
+            - Built from branch: `${{ github.ref_name }}`
           files: PKGBUILDs/linux-clockworkpi-uc4/*.pkg.tar.*
           draft: false
           prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
