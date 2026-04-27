@@ -38,7 +38,8 @@ index 631227dfc..cf92b73f5 100644
  obj-$(CONFIG_BACKLIGHT_ARCXCNN) 	+= arcxcnn_bl.o
  obj-$(CONFIG_BACKLIGHT_RAVE_SP)		+= rave-sp-backlight.o
  obj-$(CONFIG_BACKLIGHT_LED)		+= led_bl.o
-+obj-$(CONFIG_BACKLIGHT_OCP8178)		+= ocp8178_bl.o
++obj-$(CONFIG_BACKLIGHT_OCP8178)\t\t+= ocp8178_bl.o
+
 diff --git a/drivers/video/backlight/ocp8178_bl.c b/drivers/video/backlight/ocp8178_bl.c
 new file mode 100644
 index 000000000..2b0d1b159
