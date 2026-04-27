@@ -37,7 +37,6 @@ md5sums=('SKIP'
          'SKIP'
          'SKIP'
          'SKIP'
-         'SKIP'
          'SKIP')
 
 ### Start to inject code to support cross compile
