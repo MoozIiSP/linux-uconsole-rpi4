@@ -1,15 +1,14 @@
-From 8523aa74a278ab19f2e8abb5a44a2fd417addc7f Mon Sep 17 00:00:00 2001
-From: Potato <nikko@faint.day>
-Date: Wed, 13 Dec 2023 13:32:33 +0800
-Subject: [PATCH 7/7] drm: panel: cwu50: expose dsi error status to userspace
- via sysfs
+From 92445b9dfb483959cbf8603d983d38780e01c634 Mon Sep 17 00:00:00 2001
+From: MoozIiSP <yuaolni@gmail.com>
+Date: Mon, 27 Apr 2026 08:34:38 +0800
+Subject: [PATCH 7/7] Patch 7: DSI error status
 
 ---
  drivers/gpu/drm/panel/panel-clockwork-cwu50.c | 41 ++++++++++++++++++-
  1 file changed, 40 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/gpu/drm/panel/panel-clockwork-cwu50.c b/drivers/gpu/drm/panel/panel-clockwork-cwu50.c
-index 8eb7ec1afcbe..486441e9df8a 100644
+index de886b3e0..a8016edca 100644
 --- a/drivers/gpu/drm/panel/panel-clockwork-cwu50.c
 +++ b/drivers/gpu/drm/panel/panel-clockwork-cwu50.c
 @@ -27,6 +27,31 @@ struct cwu50 {
@@ -96,5 +95,5 @@ index 8eb7ec1afcbe..486441e9df8a 100644
  	drm_panel_remove(&ctx->panel);
  }
 -- 
-2.43.0
+2.50.1 (Apple Git-155)
 

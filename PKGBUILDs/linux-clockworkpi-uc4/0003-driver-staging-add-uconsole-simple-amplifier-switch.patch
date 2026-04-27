@@ -1,7 +1,7 @@
-From e790ee89bbf63aa6f2741f4c18760ae877868daa Mon Sep 17 00:00:00 2001
-From: Potato <nikko@faint.day>
-Date: Fri, 13 Oct 2023 11:08:40 +0800
-Subject: [PATCH 3/6] driver: staging: add uconsole simple amplifier switch
+From a2dc96c41d5360b7d97074e93c3c77adb843071f Mon Sep 17 00:00:00 2001
+From: MoozIiSP <yuaolni@gmail.com>
+Date: Mon, 27 Apr 2026 08:19:08 +0800
+Subject: [PATCH 3/7] test: patch 3 applied manually
 
 ---
  drivers/staging/Kconfig                       |   2 +
@@ -15,10 +15,10 @@ Subject: [PATCH 3/6] driver: staging: add uconsole simple amplifier switch
  create mode 100644 drivers/staging/uconsole/simple-amplifier-switch.c
 
 diff --git a/drivers/staging/Kconfig b/drivers/staging/Kconfig
-index 5cfabd5376cc..a5b88d33d3de 100644
+index 7aa37f54a..ee2f9829e 100644
 --- a/drivers/staging/Kconfig
 +++ b/drivers/staging/Kconfig
-@@ -80,4 +80,6 @@ source "drivers/staging/qlge/Kconfig"
+@@ -62,4 +62,6 @@ source "drivers/staging/fieldbus/Kconfig"
  
  source "drivers/staging/vme_user/Kconfig"
  
@@ -26,7 +26,7 @@ index 5cfabd5376cc..a5b88d33d3de 100644
 +
  endif # STAGING
 diff --git a/drivers/staging/Makefile b/drivers/staging/Makefile
-index f8c3aa9c2418..4c09e021e321 100644
+index 2e18fe5b7..30c50c795 100644
 --- a/drivers/staging/Makefile
 +++ b/drivers/staging/Makefile
 @@ -2,6 +2,7 @@
@@ -34,12 +34,12 @@ index f8c3aa9c2418..4c09e021e321 100644
  
  obj-y				+= media/
 +obj-y				+= uconsole/
- obj-$(CONFIG_PRISM2_USB)	+= wlan-ng/
  obj-$(CONFIG_FB_OLPC_DCON)	+= olpc_dcon/
- obj-$(CONFIG_RTL8192U)		+= rtl8192u/
+ obj-$(CONFIG_RTL8192E)		+= rtl8192e/
+ obj-$(CONFIG_RTL8723BS)		+= rtl8723bs/
 diff --git a/drivers/staging/uconsole/Kconfig b/drivers/staging/uconsole/Kconfig
 new file mode 100644
-index 000000000000..303e2e26a0b1
+index 000000000..8c386d740
 --- /dev/null
 +++ b/drivers/staging/uconsole/Kconfig
 @@ -0,0 +1,10 @@
@@ -55,14 +55,14 @@ index 000000000000..303e2e26a0b1
 +	  detect pin on uConsole.
 diff --git a/drivers/staging/uconsole/Makefile b/drivers/staging/uconsole/Makefile
 new file mode 100644
-index 000000000000..8f3239c1f36c
+index 000000000..8f3239c1f
 --- /dev/null
 +++ b/drivers/staging/uconsole/Makefile
 @@ -0,0 +1 @@
 +obj-$(CONFIG_SIMPLE_AMPLIFIER_SWITCH)	+= simple-amplifier-switch.o
 diff --git a/drivers/staging/uconsole/simple-amplifier-switch.c b/drivers/staging/uconsole/simple-amplifier-switch.c
 new file mode 100644
-index 000000000000..2471e035c213
+index 000000000..2471e035c
 --- /dev/null
 +++ b/drivers/staging/uconsole/simple-amplifier-switch.c
 @@ -0,0 +1,131 @@
@@ -199,5 +199,5 @@ index 000000000000..2471e035c213
 +MODULE_LICENSE("GPL v2");
 \ No newline at end of file
 -- 
-2.43.0
+2.50.1 (Apple Git-155)
 
