@@ -1,16 +1,17 @@
-From: Potato <nikko@faint.day>
-Subject: [PATCH] power: axp20x: PMU customization and calibration support
+From: MoozIiSP <mooziisp@example.com>
+Subject: [PATCH] power: axp20x: Adapt for AXP228 and improve power management
 
+- Remove fake AXP288 fuel gauge register reads (not supported on AXP228)
+- Calculate ENERGY_NOW using percentage * design_capacity (from DT)
+- Add pm_power_off handler to cut power on shutdown (write 0x80 to 0x32)
+- Configure PEK (Power Key) for 4s long-press shutdown
+- Configure charging LED to follow charge status
 - Do not limit IPSOUT current
-- Configure charge LED control
-- Add ENERGY_FULL, ENERGY_NOW, ENERGY_FULL_DESIGN properties
-- Add CALIBRATE property for battery calibration
-- Load energy_full_design from DT (energy-full-design-microwatt-hours)
 
 ---
  drivers/power/supply/axp20x_ac_power.c |   3 +
- drivers/power/supply/axp20x_battery.c  | 115 ++++++++++++++++++++++++++++++++-
- 2 files changed, 117 insertions(+), 1 deletion(-)
+ drivers/power/supply/axp20x_battery.c  |  85 +++++++++++++++++++++++++++---
+ 2 files changed, 80 insertions(+), 8 deletions(-)
 
 --- a/drivers/power/supply/axp20x_ac_power.c	2026-04-27 16:06:29
 +++ b/drivers/power/supply/axp20x_ac_power.c	2026-04-27 16:06:29
@@ -26,7 +27,7 @@ Subject: [PATCH] power: axp20x: PMU customization and calibration support
  	return IRQ_HANDLED;
 
 --- a/drivers/power/supply/axp20x_battery.c	2026-04-27 16:06:29
-+++ b/drivers/power/supply/axp20x_battery.c	2026-04-27 16:06:29
++++ b/drivers/power/supply/axp20x_battery.c	2026-04-27 17:48:53
 @@ -42,6 +42,10 @@
  #define AXP20X_PWR_OP_BATT_ACTIVATED	BIT(3)
  #define AXP717_PWR_OP_BATT_PRESENT	BIT(3)
@@ -38,7 +39,17 @@ Subject: [PATCH] power: axp20x: PMU customization and calibration support
  #define AXP717_BATT_PMU_FAULT_MASK	GENMASK(2, 0)
  #define AXP717_BATT_UVLO_2_5V		BIT(2)
  #define AXP717_BATT_OVER_TEMP		BIT(1)
-@@ -118,6 +122,7 @@
+@@ -57,6 +61,9 @@
+ #define AXP20X_CHRG_CTRL1_TGT_4_2V	(2 << 5)
+ #define AXP20X_CHRG_CTRL1_TGT_4_36V	(3 << 5)
+ 
++/* Static pointer for power off callback */
++static struct axp20x_batt_ps *axp_poweroff_dev;
++
+ #define AXP22X_CHRG_CTRL1_TGT_4_22V	(1 << 5)
+ #define AXP22X_CHRG_CTRL1_TGT_4_24V	(3 << 5)
+ 
+@@ -118,6 +125,7 @@
  	struct iio_channel *batt_v;
  	/* Maximum constant charge current */
  	unsigned int max_ccc;
@@ -46,106 +57,74 @@ Subject: [PATCH] power: axp20x: PMU customization and calibration support
  	const struct axp_data	*data;
  	bool ts_disable;
  };
-@@ -394,6 +399,63 @@
+@@ -394,8 +402,35 @@
  		 * directly the raw percentage without any scaling to 7 bits.
  		 */
  		val->intval = reg & AXP209_FG_PERCENT;
 +		break;
 +
 +	case POWER_SUPPLY_PROP_ENERGY_FULL:
++		val->intval = axp20x_batt->energy_full_design;
++		break;
++
 +	case POWER_SUPPLY_PROP_ENERGY_NOW:
-+	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
 +		/* When no battery is present, return 0 */
 +		ret = regmap_read(axp20x_batt->regmap, AXP20X_PWR_OP_MODE, &reg);
 +		if (ret)
 +			return ret;
-+
 +		if (!(reg & AXP20X_PWR_OP_BATT_PRESENT)) {
 +			val->intval = 0;
 +			return 0;
 +		}
 +
-+		if (psp == POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN) {
-+			val->intval = axp20x_batt->energy_full_design;
-+			return 0;
-+		}
-+
-+		/* read capacity from PMU */
-+		val->intval = axp20x_batt->energy_full_design;
-+
-+		ret = regmap_read(axp20x_batt->regmap, AXP288_FG_DES_CAP0_REG, &reg);
-+		if (ret)
-+			return ret;
-+		val1 = reg;
-+
-+		ret = regmap_read(axp20x_batt->regmap, AXP288_FG_DES_CAP1_REG, &reg);
-+		if (ret)
-+			return ret;
-+		val1 |= (reg & 0x3F) << 8;  /* unit 1.456mAh */
-+		val1 = val1 * 1456 * 36 / 10;  /* uWh */
-+
-+		if (psp == POWER_SUPPLY_PROP_ENERGY_FULL) {
-+			val->intval = val1;
-+			return 0;
-+		}
-+
++		/* Calculate remaining energy based on percentage and design capacity */
 +		ret = regmap_read(axp20x_batt->regmap, AXP20X_FG_RES, &reg);
 +		if (ret)
 +			return ret;
-+
-+		if (axp20x_batt->data->has_fg_valid && !(reg & AXP22X_FG_VALID))
-+			return -EINVAL;
-+
 +		reg = reg & AXP209_FG_PERCENT;
 +		reg = max(min(reg, 100), 0);
-+		val->intval = (reg * ((long long int)(val1))) / 100;
-+		break;
-+
-+	case POWER_SUPPLY_PROP_CALIBRATE:
-+		ret = regmap_read(axp20x_batt->regmap, AXP20X_CC_CTRL, &reg);
-+		if (ret)
-+			return ret;
-+		val1 = reg & AXP228_CALIBRATE_MASK;
-+		val->intval = val1;
++		val->intval = (reg * ((long long int)(axp20x_batt->energy_full_design))) / 100;
  		break;
  
++	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
++		val->intval = axp20x_batt->energy_full_design;
++		break;
++
  	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
-@@ -549,6 +611,34 @@
- 		 * directly the raw percentage without any scaling to 7 bits.
- 		 */
+ 		return axp20x_batt->data->get_max_voltage(axp20x_batt,
+ 							  &val->intval);
+@@ -551,6 +586,30 @@
  		val->intval = reg & AXP209_FG_PERCENT;
+ 		return 0;
+ 
++	case POWER_SUPPLY_PROP_ENERGY_FULL:
++		val->intval = axp20x_batt->energy_full_design;
 +		return 0;
 +
-+	case POWER_SUPPLY_PROP_ENERGY_FULL:
 +	case POWER_SUPPLY_PROP_ENERGY_NOW:
-+	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
 +		ret = regmap_read(axp20x_batt->regmap, AXP20X_PWR_OP_MODE, &reg);
 +		if (ret)
 +			return ret;
-+
 +		if (!FIELD_GET(AXP717_PWR_OP_BATT_PRESENT, reg)) {
 +			val->intval = 0;
 +			return 0;
 +		}
-+
-+		if (psp == POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN) {
-+			val->intval = axp20x_batt->energy_full_design;
-+			return 0;
-+		}
-+
-+		val->intval = axp20x_batt->energy_full_design;
-+
-+		ret = regmap_read(axp20x_batt->regmap, AXP717_BATT_PERCENT_DATA, &reg);
++		ret = regmap_read(axp20x_batt->regmap, AXP20X_FG_RES, &reg);
 +		if (ret)
 +			return ret;
-+
 +		reg = reg & AXP209_FG_PERCENT;
 +		reg = max(min(reg, 100), 0);
-+		val->intval = (reg * ((long long int)(val->intval))) / 100;
- 		return 0;
- 
++		val->intval = (reg * ((long long int)(axp20x_batt->energy_full_design))) / 100;
++		return 0;
++
++	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
++		val->intval = axp20x_batt->energy_full_design;
++		return 0;
++
  	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
-@@ -770,6 +860,7 @@
+ 		return axp20x_batt->data->get_max_voltage(axp20x_batt,
+ 							  &val->intval);
+@@ -770,6 +829,7 @@
  				   const union power_supply_propval *val)
  {
  	struct axp20x_batt_ps *axp20x_batt = power_supply_get_drvdata(psy);
@@ -153,7 +132,7 @@ Subject: [PATCH] power: axp20x: PMU customization and calibration support
  
  	switch (psp) {
  	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
-@@ -806,6 +897,7 @@
+@@ -806,6 +866,7 @@
  				   const union power_supply_propval *val)
  {
  	struct axp20x_batt_ps *axp20x_batt = power_supply_get_drvdata(psy);
@@ -161,7 +140,7 @@ Subject: [PATCH] power: axp20x: PMU customization and calibration support
  
  	switch (psp) {
  	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
-@@ -872,7 +964,8 @@
+@@ -872,7 +933,8 @@
  	       psp == POWER_SUPPLY_PROP_VOLTAGE_MIN ||
  	       psp == POWER_SUPPLY_PROP_VOLTAGE_MAX ||
  	       psp == POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT ||
@@ -171,7 +150,7 @@ Subject: [PATCH] power: axp20x: PMU customization and calibration support
  }
  
  static int axp717_battery_prop_writeable(struct power_supply *psy,
-@@ -881,7 +974,8 @@
+@@ -881,7 +943,8 @@
  	return psp == POWER_SUPPLY_PROP_STATUS ||
  	       psp == POWER_SUPPLY_PROP_VOLTAGE_MIN ||
  	       psp == POWER_SUPPLY_PROP_VOLTAGE_MAX ||
@@ -181,34 +160,63 @@ Subject: [PATCH] power: axp20x: PMU customization and calibration support
  }
  
  static const struct power_supply_desc axp209_batt_ps_desc = {
-@@ -1127,8 +1221,30 @@
+@@ -1126,10 +1189,46 @@
+ 			PTR_ERR(axp20x_batt->batt));
  		return PTR_ERR(axp20x_batt->batt);
  	}
++
++	if (!power_supply_get_battery_info(axp20x_batt->batt, &info)) {
++		axp20x_batt->data->set_bat_info(pdev, axp20x_batt, info);
++		power_supply_put_battery_info(axp20x_batt->batt, info);
++	}
++
++
++/* Power-off callback for AXP228/209
++ * Sets SOFT_POWER_OFF bit in OFF_CTRL register to cut all power
++ */
++static void axp20x_power_off(void)
++{
++	if (axp_poweroff_dev)
++		regmap_update_bits(axp_poweroff_dev->regmap, AXP20X_OFF_CTRL, 0x80, 0x80);
++}
++
++	/* Do not limit IPSOUT current */
++	regmap_update_bits(axp20x_batt->regmap, AXP20X_VBUS_IPSOUT_MGMT, 0x03, 0x03);
  
-+	regmap_update_bits(axp20x_batt->regmap, AXP20X_VBUS_IPSOUT_MGMT, 0x03, 0x03); /* do not limit IPSOUT current */
-+	regmap_update_bits(axp20x_batt->regmap, AXP20X_OFF_CTRL, 0x08, 0x08); /* set charge led controlled by charge module */
-+	regmap_update_bits(axp20x_batt->regmap, AXP20X_CHRG_CTRL2, 0x30, 0x20); /* full charge output, charge led function type */
-+	regmap_update_bits(axp20x_batt->regmap, AXP20X_GPIO0_CTRL, 0x07, 0x00); /* configure charging LED */
++	/* Configure Charge LED: Controlled by charge status (Bit 4-5: 01) */
++	regmap_update_bits(axp20x_batt->regmap, AXP20X_CHRG_CTRL2, 0x30, 0x10);
 +
++	/* Configure Power Extension Key (PEK): Long press 4s to shutdown */
++	/* Register 0x36: Bits 4-5 set to 01 (4s shutdown) */
++	regmap_update_bits(axp20x_batt->regmap, AXP20X_PEK_KEY, 0x30, 0x10);
++
++	/* Load energy_full_design from DT */
  	if (!power_supply_get_battery_info(axp20x_batt->batt, &info)) {
-+		int cfd = info->charge_full_design_uah;
-+
  		axp20x_batt->data->set_bat_info(pdev, axp20x_batt, info);
-+
-+		if (info->energy_full_design_uwh != info->charge_full_design_uah) {
-+			if (info->energy_full_design_uwh == -EINVAL)
-+				dev_warn(axp20x_batt->dev, "missing battery:energy-full-design-microwatt-hours\n");
-+			else if (info->charge_full_design_uah == -EINVAL)
-+				dev_warn(axp20x_batt->dev, "missing battery:charge-full-design-microamp-hours\n");
-+		}
-+
-+		if (info->energy_full_design_uwh != -EINVAL)
++		if (info->energy_full_design_uwh != -EINVAL) {
 +			axp20x_batt->energy_full_design = info->energy_full_design_uwh;
-+		else if (info->charge_full_design_uah != -EINVAL)
-+			axp20x_batt->energy_full_design = cfd / 10 * 36; /* assume standard voltage 3.6V */
-+		else
-+			axp20x_batt->energy_full_design = 8000000; /* default capacity, 8Wh */
-+
++		} else if (info->charge_full_design_uah != -EINVAL) {
++			/* Assume standard Li-ion voltage 3.7V for conversion */
++			axp20x_batt->energy_full_design = (info->charge_full_design_uah * 3700) / 1000;
++		} else {
++			axp20x_batt->energy_full_design = 12000000; /* Default 12Wh for typical 18650 */
++		}
  		power_supply_put_battery_info(axp20x_batt->batt, info);
++	} else {
++		axp20x_batt->energy_full_design = 12000000; /* Fallback default */
  	}
+ 
+ 	/*
+@@ -1138,6 +1237,12 @@
+ 	 */
+ 	axp20x_get_constant_charge_current(axp20x_batt, &axp20x_batt->max_ccc);
+ 
++	/* Register Power-off Handler */
++	if (!pm_power_off) {
++		axp_poweroff_dev = axp20x_batt;
++		pm_power_off = (void (*)(void))axp20x_power_off;
++	}
++
+ 	return 0;
+ }
  
