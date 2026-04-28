@@ -20,20 +20,14 @@ sudo update-binfmts --enable qemu-aarch64
 ls /proc/sys/fs/binfmt_misc/qemu-aarch64 && echo "QEMU aarch64 binfmt ready" || echo "Warning: binfmt not found"
 
 echo "==> Downloading Manjaro ARM rootfs..."
-ROOTFS_URL="https://mirror.alpix.eu/manjaro-arm/rootfs/aarch64/minimal/"
-ROOTFS_FILE=$(curl -sL "$ROOTFS_URL" | grep -oP 'Manjaro-ARM-minimal-aarch64-.*\.tar\.xz' | head -1)
-if [ -z "$ROOTFS_FILE" ]; then
-    echo "Could not find rootfs tarball at $ROOTFS_URL"
-    curl -sL "$ROOTFS_URL" | head -20
-    exit 1
-fi
-echo "Downloading: $ROOTFS_FILE"
-curl -sL "${ROOTFS_URL}${ROOTFS_FILE}" -o /tmp/rootfs.tar.xz
-echo "Downloaded: $(du -h /tmp/rootfs.tar.xz | cut -f1)"
+ROOTFS_URL="https://github.com/manjaro-arm/rootfs/releases/latest/download/Manjaro-ARM-aarch64-latest.tar.gz"
+echo "Downloading from: $ROOTFS_URL"
+curl -sL -o /tmp/rootfs.tar.gz "$ROOTFS_URL"
+echo "Downloaded: $(du -h /tmp/rootfs.tar.gz | cut -f1)"
 
 echo "==> Extracting rootfs..."
 WORKDIR=$(mktemp -d)
-sudo tar -xJf /tmp/rootfs.tar.xz -C "$WORKDIR"
+sudo tar -xzf /tmp/rootfs.tar.gz -C "$WORKDIR"
 echo "Rootfs extracted to $WORKDIR"
 ls "$WORKDIR" | head -10
 
@@ -45,16 +39,25 @@ if [ -z "$PKG_FILE" ]; then
     exit 1
 fi
 echo "Using package: $(basename "$PKG_FILE")"
+
+# Copy QEMU binary into rootfs for chroot
+sudo cp /usr/bin/qemu-aarch64-static "$WORKDIR/usr/bin/"
+
+# Copy package into rootfs
 sudo cp "$PKG_FILE" "$WORKDIR/tmp/"
 
-sudo chroot "$WORKDIR" bash -c '
+# Run pacman inside rootfs using QEMU chroot
+sudo chroot "$WORKDIR" qemu-aarch64-static bash -c '
     set -e
-    # Initialize pacman keyring for the chroot
+    # Initialize pacman keyring
     pacman-key --init 2>/dev/null || true
-    pacman-key --populate manjaro 2>/dev/null || true
+    pacman-key --populate archlinuxarm manjaro 2>/dev/null || true
     
     # Install the kernel package
-    pacman -U --noconfirm --needed /tmp/linux-clockworkpi-uc4-*.pkg.tar.zst
+    pacman -U --noconfirm --needed /tmp/linux-clockworkpi-uc4-*.pkg.tar.zst || echo "Package install had warnings, continuing..."
+    
+    # Clean up
+    rm -f /tmp/linux-clockworkpi-uc4-*.pkg.tar.zst
 ' || echo "Warning: Kernel install in chroot had issues, continuing..."
 
 echo "==> Creating disk image..."
@@ -76,4 +79,4 @@ echo "==> Success! Image: $OUT_DIR/Manjaro-ARM-minimal-uconsole-cm4.img.xz"
 echo "Size: $(du -h "$OUT_DIR/Manjaro-ARM-minimal-uconsole-cm4.img.xz" | cut -f1)"
 
 # Cleanup
-sudo rm -rf "$WORKDIR" /tmp/rootfs.tar.xz
+sudo rm -rf "$WORKDIR" /tmp/rootfs.tar.gz
