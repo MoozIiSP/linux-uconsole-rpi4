@@ -15,8 +15,36 @@ fi
 
 echo "==> Setting up environment for manjaro-arm-tools..."
 
-# Install tools (arm-profiles provides base device/edition configs)
-pacman -Sy --noconfirm manjaro-arm-tools qemu-user-static arm-profiles
+# Install tools
+pacman -Sy --noconfirm manjaro-arm-tools qemu-user-static
+
+# Create arm-profiles (base device/edition configs that buildarmimg needs)
+# arm-profiles package doesn't exist in Manjaro ARM repos, so we create them manually
+ARM_PROFILES="/usr/share/manjaro-arm-tools/profiles/arm-profiles"
+mkdir -p "$ARM_PROFILES/devices" "$ARM_PROFILES/editions"
+
+# Device: raspberrypi-4 (our base device)
+cat > "$ARM_PROFILES/devices/raspberrypi-4.conf" <<'EOF'
+[device]
+name=raspberrypi-4
+target=aarch64
+board=raspberrypi-4
+kernel=linux-raspberrypi4
+uboot=u-boot-raspberrypi
+bootscript=boot.cmd.rpi
+EOF
+
+# Edition: minimal
+cat > "$ARM_PROFILES/editions/minimal.conf" <<'EOF'
+[edition]
+name=minimal
+packages=(
+    base
+)
+EOF
+
+# Copy our custom profile
+cp "$REPO_ROOT/profiles/uconsole-cm4.conf" "/usr/share/manjaro-arm-tools/profiles/"
 
 # Setup QEMU for chrooting into ARM rootfs
 # In containers, manually register binfmt handler
