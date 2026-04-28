@@ -23,14 +23,12 @@ mkdir -p /usr/share/manjaro-arm-tools/profiles/arm-profiles
 cp -r "$REPO_ROOT/arm-profiles/"* /usr/share/manjaro-arm-tools/profiles/arm-profiles/
 
 # Setup QEMU for chrooting into ARM rootfs
-# In containers, manually register binfmt handler
-set +e
-echo ":qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\xfc\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-aarch64-static:OC" > /proc/sys/fs/binfmt_misc/register 2>/dev/null
-set -e
+# binfmt handlers already registered by docker/setup-qemu-action on the runner
 if [ -f /proc/sys/fs/binfmt_misc/qemu-aarch64 ]; then
-    echo "==> QEMU aarch64 binfmt registered"
+    echo "==> QEMU aarch64 binfmt already registered (from runner)"
 else
-    echo "Warning: qemu-aarch64 binfmt not registered, chroot may fail"
+    echo "Warning: qemu-aarch64 binfmt not available, chroot will fail"
+    exit 1
 fi
 
 # Setup local repo to include our custom kernel package

@@ -81,11 +81,11 @@ jobs:
     needs: build
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    container:
-      image: manjarolinux/build
-      options: --privileged
     timeout-minutes: 120
     steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Check out repository code
         uses: actions/checkout@v4
 
@@ -98,7 +98,11 @@ jobs:
       - name: Build Manjaro ARM Image
         run: |
           chmod +x scripts/build-image.sh
-          scripts/build-image.sh ./kernel-pkg ./release
+          docker run --rm --privileged \
+            -v ${{ github.workspace }}:/workspace \
+            -e GITHUB_WORKSPACE=/workspace \
+            manjarolinux/build \
+            bash -c "cd /workspace && scripts/build-image.sh ./kernel-pkg ./release"
 
       - name: Upload Image to Release
         uses: softprops/action-gh-release@v2
