@@ -83,12 +83,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          image: tonistiigi/binfmt:latest
-          platforms: arm64
-
       - name: Check out repository code
         uses: actions/checkout@v4
 
@@ -100,13 +94,8 @@ jobs:
 
       - name: Build Manjaro ARM Image
         run: |
-          chmod +x scripts/build-image.sh
-          docker run --rm --privileged \
-            -v ${{ github.workspace }}:/workspace \
-            -v /proc/sys/fs/binfmt_misc:/proc/sys/fs/binfmt_misc \
-            -e GITHUB_WORKSPACE=/workspace \
-            manjarolinux/build \
-            bash -c "cd /workspace && scripts/build-image.sh ./kernel-pkg ./release"
+          chmod +x scripts/build-image-ubuntu.sh
+          ./scripts/build-image-ubuntu.sh ./kernel-pkg ./release
 
       - name: Upload Image to Release
         uses: softprops/action-gh-release@v2
