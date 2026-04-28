@@ -19,17 +19,17 @@ BOOT_SIZE_MB=512  # Boot partition
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 
 echo "==> Installing required tools..."
-sudo apt-get update -qq
-sudo apt-get install -y -qq qemu-user-static binfmt-support dosfstools parted u-boot-tools e2fsprogs >/dev/null 2>&1
+ apt-get update -qq
+ apt-get install -y -qq qemu-user-static binfmt-support dosfstools parted u-boot-tools e2fsprogs >/dev/null 2>&1
 
 echo "==> Setting up QEMU binfmt..."
 # Try update-binfmts first (Debian/Ubuntu), fallback to manual registration
 if command -v update-binfmts &>/dev/null; then
-    sudo update-binfmts --enable qemu-aarch64 2>/dev/null || true
+     update-binfmts --enable qemu-aarch64 2>/dev/null || true
 fi
 if [ ! -f /proc/sys/fs/binfmt_misc/qemu-aarch64 ]; then
     echo "Registering qemu-aarch64 binfmt manually..."
-    echo ":qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\xfc\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-aarch64-static:OC" | sudo tee /proc/sys/fs/binfmt_misc/register 2>/dev/null || true
+    echo ":qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\xfc\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-aarch64-static:OC" |  tee /proc/sys/fs/binfmt_misc/register 2>/dev/null || true
 fi
 ls /proc/sys/fs/binfmt_misc/qemu-aarch64 && echo "QEMU aarch64 binfmt ready" || echo "Warning: binfmt not registered"
 
@@ -40,8 +40,8 @@ echo "Downloaded: $(du -h /tmp/rootfs.tar.gz | cut -f1)"
 
 echo "==> Extracting rootfs..."
 WORKDIR=$(mktemp -d)
-sudo tar -xzf /tmp/rootfs.tar.gz -C "$WORKDIR"
-echo "Rootfs extracted to $WORKDIR ($(sudo du -sh "$WORKDIR" | cut -f1))"
+ tar -xzf /tmp/rootfs.tar.gz -C "$WORKDIR"
+echo "Rootfs extracted to $WORKDIR ($( du -sh "$WORKDIR" | cut -f1))"
 
 echo "==> Installing packages into rootfs..."
 PKG_FILE=$(ls "$PKG_DIR"/linux-clockworkpi-uc4-*.pkg.tar.zst 2>/dev/null | head -1)
@@ -52,21 +52,21 @@ fi
 echo "Using kernel: $(basename "$PKG_FILE")"
 
 # Prepare chroot — install kernel directly via pacman -U (no repo-add needed on Ubuntu)
-sudo cp /usr/bin/qemu-aarch64-static "$WORKDIR/usr/bin/"
-sudo cp "$PKG_FILE" "$WORKDIR/tmp/"
+ cp /usr/bin/qemu-aarch64-static "$WORKDIR/usr/bin/"
+ cp "$PKG_FILE" "$WORKDIR/tmp/"
 
 # Setup arm-profiles in chroot (replicates buildarmimg behavior)
 echo "==> Setting up arm-profiles..."
-sudo mkdir -p "$WORKDIR/usr/share/manjaro-arm-tools/profiles/arm-profiles"
+ mkdir -p "$WORKDIR/usr/share/manjaro-arm-tools/profiles/arm-profiles"
 if [ -d "$REPO_ROOT/arm-profiles" ]; then
-    sudo cp -r "$REPO_ROOT/arm-profiles/"* "$WORKDIR/usr/share/manjaro-arm-tools/profiles/arm-profiles/"
+     cp -r "$REPO_ROOT/arm-profiles/"* "$WORKDIR/usr/share/manjaro-arm-tools/profiles/arm-profiles/"
     echo "arm-profiles installed from repo"
 else
     echo "Warning: arm-profiles directory not found at $REPO_ROOT/arm-profiles"
 fi
 
 # Create chroot setup script
-sudo tee "$WORKDIR/tmp/setup-chroot.sh" > /dev/null << 'CHROOT_SCRIPT'
+ tee "$WORKDIR/tmp/setup-chroot.sh" > /dev/null << 'CHROOT_SCRIPT'
 #!/bin/bash
 set -e
 
@@ -143,51 +143,51 @@ rm -f /tmp/linux-clockworkpi-uc4-*.pkg.tar.zst
 rm -f /tmp/setup-chroot.sh
 CHROOT_SCRIPT
 
-sudo chmod +x "$WORKDIR/tmp/setup-chroot.sh"
+ chmod +x "$WORKDIR/tmp/setup-chroot.sh"
 
 echo "==> Running chroot installation (this takes a few minutes)..."
-sudo chroot "$WORKDIR" qemu-aarch64-static bash /tmp/setup-chroot.sh || echo "Chroot completed with warnings"
+ chroot "$WORKDIR" qemu-aarch64-static bash /tmp/setup-chroot.sh || echo "Chroot completed with warnings"
 
 echo "==> Creating disk image..."
 IMG_FILE="/tmp/${IMG_NAME}.img"
-sudo dd if=/dev/zero of="$IMG_FILE" bs=1M count=$IMG_SIZE_MB status=progress
+ dd if=/dev/zero of="$IMG_FILE" bs=1M count=$IMG_SIZE_MB status=progress
 
 echo "==> Partitioning image (GPT)..."
-sudo parted "$IMG_FILE" --script mklabel gpt
-sudo parted "$IMG_FILE" --script mkpart primary fat32 4MiB $((4 + BOOT_SIZE_MB))MiB
-sudo parted "$IMG_FILE" --script mkpart primary ext4 $((4 + BOOT_SIZE_MB))MiB 100%
-sudo parted "$IMG_FILE" --script set 1 boot on
-sudo parted "$IMG_FILE" --script set 1 esp on
+ parted "$IMG_FILE" --script mklabel gpt
+ parted "$IMG_FILE" --script mkpart primary fat32 4MiB $((4 + BOOT_SIZE_MB))MiB
+ parted "$IMG_FILE" --script mkpart primary ext4 $((4 + BOOT_SIZE_MB))MiB 100%
+ parted "$IMG_FILE" --script set 1 boot on
+ parted "$IMG_FILE" --script set 1 esp on
 
 echo "==> Formatting partitions..."
-sudo losetup -fP "$IMG_FILE"
-LOOP_DEV=$(sudo losetup -j "$IMG_FILE" | cut -d: -f1)
+ losetup -fP "$IMG_FILE"
+LOOP_DEV=$( losetup -j "$IMG_FILE" | cut -d: -f1)
 echo "Loop device: $LOOP_DEV"
 
-sudo mkfs.vfat -F 32 -n "BOOT" "${LOOP_DEV}p1"
-sudo mkfs.ext4 -F -L "ROOT" "${LOOP_DEV}p2"
+ mkfs.vfat -F 32 -n "BOOT" "${LOOP_DEV}p1"
+ mkfs.ext4 -F -L "ROOT" "${LOOP_DEV}p2"
 
 echo "==> Mounting and populating image..."
-sudo mkdir -p /mnt/boot /mnt/root
-sudo mount "${LOOP_DEV}p2" /mnt/root
-sudo mount "${LOOP_DEV}p1" /mnt/boot
+ mkdir -p /mnt/boot /mnt/root
+ mount "${LOOP_DEV}p2" /mnt/root
+ mount "${LOOP_DEV}p1" /mnt/boot
 
 # Copy rootfs to root partition
-sudo cp -a "$WORKDIR/"* /mnt/root/
-sudo cp -a "$WORKDIR/".[!.]* /mnt/root/ 2>/dev/null || true
+ cp -a "$WORKDIR/"* /mnt/root/
+ cp -a "$WORKDIR/".[!.]* /mnt/root/ 2>/dev/null || true
 
 echo "==> Getting PARTUUIDs and UUIDs..."
-BOOT_PARTUUID=$(sudo blkid -s PARTUUID -o value "${LOOP_DEV}p1")
-ROOT_PARTUUID=$(sudo blkid -s PARTUUID -o value "${LOOP_DEV}p2")
-ROOT_UUID=$(sudo blkid -s UUID -o value "${LOOP_DEV}p2")
-BOOT_UUID=$(sudo blkid -s UUID -o value "${LOOP_DEV}p1")
+BOOT_PARTUUID=$( blkid -s PARTUUID -o value "${LOOP_DEV}p1")
+ROOT_PARTUUID=$( blkid -s PARTUUID -o value "${LOOP_DEV}p2")
+ROOT_UUID=$( blkid -s UUID -o value "${LOOP_DEV}p2")
+BOOT_UUID=$( blkid -s UUID -o value "${LOOP_DEV}p1")
 echo "BOOT PARTUUID: $BOOT_PARTUUID"
 echo "ROOT PARTUUID: $ROOT_PARTUUID"
 echo "ROOT UUID: $ROOT_UUID"
 echo "BOOT UUID: $BOOT_UUID"
 
 echo "==> Generating fstab (UUID-based)..."
-sudo tee /mnt/root/etc/fstab > /dev/null << FSTAB_EOF
+ tee /mnt/root/etc/fstab > /dev/null << FSTAB_EOF
 # /etc/fstab: static file system information
 # <file system>                                <dir> <type> <options>          <dump> <pass>
 UUID=${ROOT_UUID}  /     ext4   defaults,noatime,discard    0      1
@@ -197,20 +197,20 @@ FSTAB_EOF
 
 echo "==> Setting up boot files..."
 # Copy all boot files from rootfs /boot to boot partition
-sudo cp -a /mnt/root/boot/* /mnt/boot/ 2>/dev/null || true
+ cp -a /mnt/root/boot/* /mnt/boot/ 2>/dev/null || true
 
 # Ensure kernel image for RPi4 direct boot
-sudo cp /mnt/root/boot/Image /mnt/boot/kernel8.img 2>/dev/null || true
+ cp /mnt/root/boot/Image /mnt/boot/kernel8.img 2>/dev/null || true
 # Fallback: copy compressed kernel if Image doesn't exist
 if [ ! -f /mnt/boot/kernel8.img ]; then
-    sudo cp /mnt/root/boot/Image.gz /mnt/boot/kernel8.img 2>/dev/null || true
+     cp /mnt/root/boot/Image.gz /mnt/boot/kernel8.img 2>/dev/null || true
 fi
 
 # config.txt
 if [ -f /mnt/root/boot/config.txt ]; then
-    sudo cp /mnt/root/boot/config.txt /mnt/boot/
+     cp /mnt/root/boot/config.txt /mnt/boot/
 else
-    sudo tee /mnt/boot/config.txt > /dev/null << 'CONFIG'
+     tee /mnt/boot/config.txt > /dev/null << 'CONFIG'
 # Manjaro ARM RPi4 / uConsole CM4 configuration
 enable_uart=1
 dtoverlay=vc4-kms-v3d
@@ -221,13 +221,13 @@ CONFIG
 fi
 
 # cmdline.txt with PARTUUID (not /dev/mmcblk0p2)
-sudo tee /mnt/boot/cmdline.txt > /dev/null << CMDLINE_EOF
+ tee /mnt/boot/cmdline.txt > /dev/null << CMDLINE_EOF
 console=ttyS1,115200 console=tty0 root=PARTUUID=${ROOT_PARTUUID} rw rootwait earlycon
 CMDLINE_EOF
 
 echo "==> Generating boot.scr (U-Boot boot script)..."
 # Create boot.cmd and compile to boot.scr
-sudo tee /tmp/boot.cmd > /dev/null << 'BOOTCMD'
+ tee /tmp/boot.cmd > /dev/null << 'BOOTCMD'
 fdt addr ${fdt_addr_r}
 if test -e mmc ${devnum}:1 config.txt; then
     fatload mmc ${devnum}:1 ${kernel_addr_r} kernel8.img
@@ -236,12 +236,12 @@ if test -e mmc ${devnum}:1 config.txt; then
     booti ${kernel_addr_r} ${ramdisk_addr_r}:${filesize} ${fdt_addr_r}
 fi
 BOOTCMD
-sudo mkimage -A arm64 -O linux -T script -C none -n "Boot script for uConsole CM4" -d /tmp/boot.cmd /mnt/boot/boot.scr 2>/dev/null || echo "mkimage failed, boot.scr not generated"
+ mkimage -A arm64 -O linux -T script -C none -n "Boot script for uConsole CM4" -d /tmp/boot.cmd /mnt/boot/boot.scr 2>/dev/null || echo "mkimage failed, boot.scr not generated"
 rm -f /tmp/boot.cmd
 
 echo "==> Installing first-boot resize service..."
 # Create the resize script
-sudo tee /mnt/root/usr/local/bin/first-boot-resize.sh > /dev/null << 'RESIZE_SCRIPT'
+ tee /mnt/root/usr/local/bin/first-boot-resize.sh > /dev/null << 'RESIZE_SCRIPT'
 #!/bin/bash
 # First-boot root partition resize service
 # Expands root partition to fill the entire SD card, then self-destructs
@@ -290,10 +290,10 @@ echo "[first-boot-resize] Root partition resized successfully."
 echo "[first-boot-resize] Disabling service..."
 systemctl disable first-boot-resize.service 2>/dev/null || true
 RESIZE_SCRIPT
-sudo chmod +x /mnt/root/usr/local/bin/first-boot-resize.sh
+ chmod +x /mnt/root/usr/local/bin/first-boot-resize.sh
 
 # Create systemd service unit
-sudo tee /mnt/root/etc/systemd/system/first-boot-resize.service > /dev/null << 'UNIT_EOF'
+ tee /mnt/root/etc/systemd/system/first-boot-resize.service > /dev/null << 'UNIT_EOF'
 [Unit]
 Description=Resize root partition on first boot
 DefaultDependencies=no
@@ -311,23 +311,23 @@ WantedBy=sysinit.target
 UNIT_EOF
 
 # Enable the service
-sudo ln -sf /etc/systemd/system/first-boot-resize.service \
+ ln -sf /etc/systemd/system/first-boot-resize.service \
     /mnt/root/etc/systemd/system/sysinit.target.wants/first-boot-resize.service
 
 echo "==> Setting up OEM first-boot defaults..."
 # Create oem-install marker so OEM setup knows this is first boot
-sudo touch /mnt/root/.oem-first-boot
+ touch /mnt/root/.oem-first-boot
 # Set default user hints for OEM
-sudo mkdir -p /mnt/root/etc/manjaro-arm
-sudo tee /mnt/root/etc/manjaro-arm/oem.conf > /dev/null << 'OEM_EOF'
+ mkdir -p /mnt/root/etc/manjaro-arm
+ tee /mnt/root/etc/manjaro-arm/oem.conf > /dev/null << 'OEM_EOF'
 [oem]
 device=uconsole-cm4
 edition=minimal
 OEM_EOF
 
 echo "==> Finalizing image..."
-sudo umount /mnt/boot /mnt/root
-sudo losetup -d "$LOOP_DEV"
+ umount /mnt/boot /mnt/root
+ losetup -d "$LOOP_DEV"
 
 echo "==> Compressing image..."
 mkdir -p "$OUT_DIR"
@@ -338,5 +338,5 @@ echo "Image: $OUT_DIR/${IMG_NAME}.img.xz"
 echo "Size: $(du -h "$OUT_DIR/${IMG_NAME}.img.xz" | cut -f1)"
 
 # Cleanup
-sudo rm -rf "$WORKDIR" /tmp/rootfs.tar.gz
-sudo rm -f /tmp/${IMG_NAME}.img
+ rm -rf "$WORKDIR" /tmp/rootfs.tar.gz
+ rm -f /tmp/${IMG_NAME}.img
