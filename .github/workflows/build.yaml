@@ -8,6 +8,13 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     name: Build 🚀
@@ -86,6 +93,11 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - name: Download kernel package
         uses: actions/download-artifact@v4
         with:
@@ -94,8 +106,15 @@ jobs:
 
       - name: Build Manjaro ARM Image
         run: |
-          chmod +x scripts/build-image-ubuntu.sh
-          ./scripts/build-image-ubuntu.sh ./kernel-pkg ./release
+          # Run in privileged container for losetup + binfmt support
+          docker run --rm --privileged \
+            -v ${{ github.workspace }}:/build \
+            -w /build \
+            ubuntu:24.04 bash -c '
+              set -e
+              chmod +x scripts/build-image-ubuntu.sh
+              ./scripts/build-image-ubuntu.sh ./kernel-pkg ./release
+            '
 
       - name: Upload Image to Release
         uses: softprops/action-gh-release@v2
