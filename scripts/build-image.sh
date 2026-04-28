@@ -15,8 +15,8 @@ fi
 
 echo "==> Setting up environment for manjaro-arm-tools..."
 
-# Install tools
-pacman -Sy --noconfirm manjaro-arm-tools qemu-user-static
+# Install tools (arm-profiles provides base device/edition configs)
+pacman -Sy --noconfirm manjaro-arm-tools qemu-user-static arm-profiles
 
 # Setup QEMU for chrooting into ARM rootfs
 # In containers, manually register binfmt handler
@@ -46,11 +46,8 @@ EOF
 
 # Setup profiles
 PROFILE_DIR="/usr/share/manjaro-arm-tools/profiles"
-mkdir -p "$PROFILE_DIR/arm-profiles/devices" "$PROFILE_DIR/arm-profiles/editions"
-# Copy arm-profiles (base device/edition configs from Manjaro)
-cp "$REPO_ROOT/arm-profiles/devices/"*.conf "$PROFILE_DIR/arm-profiles/devices/"
-cp "$REPO_ROOT/arm-profiles/editions/"*.conf "$PROFILE_DIR/arm-profiles/editions/"
-# Copy our custom profile
+mkdir -p "$PROFILE_DIR"
+# Copy our custom profile to the profiles directory
 cp "$REPO_ROOT/profiles/uconsole-cm4.conf" "$PROFILE_DIR/"
 
 echo "==> Building Image..."
