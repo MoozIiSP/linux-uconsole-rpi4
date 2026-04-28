@@ -20,11 +20,13 @@ pacman -Sy --noconfirm manjaro-arm-tools qemu-user-static
 
 # Setup QEMU for chrooting into ARM rootfs
 # In containers, manually register binfmt handler
-if [ -w /proc/sys/fs/binfmt_misc/register ] 2>/dev/null; then
-    echo ":qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\xfc\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-aarch64-static:OC" > /proc/sys/fs/binfmt_misc/register 2>/dev/null && echo "==> Registered qemu-aarch64 binfmt" || true
-fi
-if [ ! -f /proc/sys/fs/binfmt_misc/qemu-aarch64 ] 2>/dev/null; then
-    echo "Warning: qemu-aarch64 binfmt not registered, image build may fail"
+set +e
+echo ":qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\xfc\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-aarch64-static:OC" > /proc/sys/fs/binfmt_misc/register 2>/dev/null
+set -e
+if [ -f /proc/sys/fs/binfmt_misc/qemu-aarch64 ]; then
+    echo "==> QEMU aarch64 binfmt registered"
+else
+    echo "Warning: qemu-aarch64 binfmt not registered, chroot may fail"
 fi
 
 # Setup local repo to include our custom kernel package
@@ -44,7 +46,11 @@ EOF
 
 # Setup profiles
 PROFILE_DIR="/usr/share/manjaro-arm-tools/profiles"
-mkdir -p "$PROFILE_DIR"
+mkdir -p "$PROFILE_DIR/arm-profiles/devices" "$PROFILE_DIR/arm-profiles/editions"
+# Copy arm-profiles (base device/edition configs from Manjaro)
+cp "$REPO_ROOT/arm-profiles/devices/"*.conf "$PROFILE_DIR/arm-profiles/devices/"
+cp "$REPO_ROOT/arm-profiles/editions/"*.conf "$PROFILE_DIR/arm-profiles/editions/"
+# Copy our custom profile
 cp "$REPO_ROOT/profiles/uconsole-cm4.conf" "$PROFILE_DIR/"
 
 echo "==> Building Image..."
