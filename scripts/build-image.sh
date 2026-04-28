@@ -46,9 +46,11 @@ EOF
 
 # Setup profiles
 PROFILE_DIR="/usr/share/manjaro-arm-tools/profiles"
-mkdir -p "$PROFILE_DIR"
-# Copy our custom profile to the profiles directory
+# Copy our custom profile to both locations:
+# 1. Root profiles dir (custom profile with [profile] section)
+# 2. arm-profiles/devices dir (where buildarmimg scans for available devices)
 cp "$REPO_ROOT/profiles/uconsole-cm4.conf" "$PROFILE_DIR/"
+cp "$REPO_ROOT/profiles/uconsole-cm4.conf" "$PROFILE_DIR/arm-profiles/devices/"
 
 echo "==> Building Image..."
 # buildarmimg -d device -e edition -v (verbose)
