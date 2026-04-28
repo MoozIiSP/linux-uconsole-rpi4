@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build Manjaro ARM image for uConsole CM4 on Ubuntu runner
-# This runs directly on ubuntu-latest where QEMU/binfmt are available
+# Runs directly on ubuntu-latest where QEMU/binfmt are available
 set -e
 
 PKG_DIR="$1"
@@ -40,33 +40,27 @@ if [ -z "$PKG_FILE" ]; then
 fi
 echo "Using package: $(basename "$PKG_FILE")"
 
-# Copy QEMU binary into rootfs for chroot
+# Copy QEMU binary and package into rootfs
 sudo cp /usr/bin/qemu-aarch64-static "$WORKDIR/usr/bin/"
-
-# Copy package into rootfs
 sudo cp "$PKG_FILE" "$WORKDIR/tmp/"
 
 # Run pacman inside rootfs using QEMU chroot
 sudo chroot "$WORKDIR" qemu-aarch64-static bash -c '
     set -e
-    # Initialize pacman keyring
     pacman-key --init 2>/dev/null || true
     pacman-key --populate archlinuxarm manjaro 2>/dev/null || true
-    
-    # Install the kernel package
-    pacman -U --noconfirm --needed /tmp/linux-clockworkpi-uc4-*.pkg.tar.zst || echo "Package install had warnings, continuing..."
-    
-    # Clean up
+    pacman -U --noconfirm --needed /tmp/linux-clockworkpi-uc4-*.pkg.tar.zst || echo "Package install had warnings"
     rm -f /tmp/linux-clockworkpi-uc4-*.pkg.tar.zst
-' || echo "Warning: Kernel install in chroot had issues, continuing..."
+' || echo "Warning: Kernel install had issues, continuing..."
 
+# === Image creation - all under sudo ===
 echo "==> Creating disk image..."
 IMG_FILE="/tmp/Manjaro-ARM-minimal-uconsole-cm4.img"
-dd if=/dev/zero of="$IMG_FILE" bs=1M count=4096 status=progress
-sudo mkfs.ext4 -L "MANJARO_ARM" "$IMG_FILE"
+sudo dd if=/dev/zero of="$IMG_FILE" bs=1M count=4096 status=progress
+sudo mkfs.ext4 -F -L "MANJARO_ARM" "$IMG_FILE"
 
 echo "==> Populating image from rootfs..."
-mkdir -p /mnt/img
+sudo mkdir -p /mnt/img
 sudo mount -o loop "$IMG_FILE" /mnt/img
 sudo cp -a "$WORKDIR/"* /mnt/img/
 sudo umount /mnt/img
@@ -74,7 +68,10 @@ echo "Image populated"
 
 echo "==> Compressing image..."
 mkdir -p "$OUT_DIR"
-xz -9 -T0 "$IMG_FILE" -c > "$OUT_DIR/Manjaro-ARM-minimal-uconsole-cm4.img.xz"
+# Move img to workspace first, then compress
+sudo mv "$IMG_FILE" ./Manjaro-ARM-minimal-uconsole-cm4.img
+sudo chown $(id -u):$(id -g) ./Manjaro-ARM-minimal-uconsole-cm4.img 2>/dev/null || true
+xz -9 -T0 ./Manjaro-ARM-minimal-uconsole-cm4.img -c > "$OUT_DIR/Manjaro-ARM-minimal-uconsole-cm4.img.xz"
 echo "==> Success! Image: $OUT_DIR/Manjaro-ARM-minimal-uconsole-cm4.img.xz"
 echo "Size: $(du -h "$OUT_DIR/Manjaro-ARM-minimal-uconsole-cm4.img.xz" | cut -f1)"
 
