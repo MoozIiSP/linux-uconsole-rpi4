@@ -1,0 +1,10 @@
+systemd-networkd.service
+dhcpcd.service
+sshd.service 
+sddm.service
+NetworkManager.service
+zswap-arm.service
+irqbalance.service
+systemd-oomd.service
+bootsplash-hide-when-booted.service
+bootsplash-show-on-shutdown.service

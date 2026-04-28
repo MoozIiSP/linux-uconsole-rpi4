@@ -1,0 +1,16 @@
+#sshd.service 
+lightdm.service
+NetworkManager.service
+bluetooth.service
+power-profiles-daemon.service
+zswap-arm.service
+bootsplash-hide-when-booted.service
+bootsplash-show-on-shutdown.service
+>pinephone pinephone-post-install.service
+>pinephone eg25-manager.service
+>pinephone ofono.service
+>pinephone ofonoctl.service
+>pinephone pinephone-modem-scripts.pinephone-modem-setup.service
+repowerd.service
+hfd-service.service
+sensorfwd.service

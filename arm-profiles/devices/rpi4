@@ -1,0 +1,22 @@
+
+## Maintained by Darksky ##
+
+# Kernel and Bootloader stuff
+linux-rpi4
+linux-rpi4-headers
+linux-rpi5
+linux-rpi5-headers
+raspberrypi-bootloader
+raspberrypi-utils
+plymouth
+plymouth-theme-manjaro
+
+# Video driver
+
+# Other device specific packages
+wireless-regdb
+linux-firmware
+firmware-raspberrypi
+wpa_supplicant
+generic-post-install
+rpi4-post-install

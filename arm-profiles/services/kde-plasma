@@ -1,0 +1,11 @@
+sshd.service
+sddm.service
+NetworkManager.service
+bluetooth.service
+power-profiles-daemon.service
+firewalld.service
+zswap-arm.service
+systemd-oomd.service
+irqbalance.service
+bootsplash-hide-when-booted.service
+bootsplash-show-on-shutdown.service

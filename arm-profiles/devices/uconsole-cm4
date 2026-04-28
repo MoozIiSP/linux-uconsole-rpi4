@@ -1,0 +1,10 @@
+## uConsole CM4 device packages
+
+# Kernel
+linux-clockworkpi-uc4
+
+# RPi4 base packages (shared with rpi4)
+wireless-regdb
+linux-firmware
+firmware-raspberrypi
+wpa_supplicant
