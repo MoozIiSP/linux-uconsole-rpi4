@@ -19,7 +19,13 @@ echo "==> Setting up environment for manjaro-arm-tools..."
 pacman -Sy --noconfirm manjaro-arm-tools qemu-user-static
 
 # Setup QEMU for chrooting into ARM rootfs
-update-binfmts --install qemu-aarch64 /usr/bin/qemu-aarch64-static
+# In containers, manually register binfmt handler
+if [ -w /proc/sys/fs/binfmt_misc/register ] 2>/dev/null; then
+    echo ":qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\xfc\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-aarch64-static:OC" > /proc/sys/fs/binfmt_misc/register 2>/dev/null && echo "==> Registered qemu-aarch64 binfmt" || true
+fi
+if [ ! -f /proc/sys/fs/binfmt_misc/qemu-aarch64 ] 2>/dev/null; then
+    echo "Warning: qemu-aarch64 binfmt not registered, image build may fail"
+fi
 
 # Setup local repo to include our custom kernel package
 REPO_DIR="/tmp/local-uconsole-repo"
