@@ -20,7 +20,7 @@ REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 
 echo "==> Installing required tools..."
 apt-get update -qq
-apt-get install -y -qq qemu-user-static binfmt-support dosfstools parted u-boot-tools e2fsprogs curl wget kpartx >/dev/null 2>&1
+apt-get install -y -qq qemu-user-static binfmt-support dosfstools parted u-boot-tools e2fsprogs curl wget kpartx xz-utils >/dev/null 2>&1
 
 echo "==> Setting up QEMU binfmt..."
 # Try update-binfmts first (Debian/Ubuntu), fallback to manual registration
