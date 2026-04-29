@@ -1,0 +1,61 @@
+name: Create System Image Only
+run-name: ${{ github.actor }} is building system image 📀
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'GitHub Actions run ID to download kernel artifact from'
+        type: string
+        required: true
+        default: '25107485359'
+
+permissions:
+  contents: write
+
+jobs:
+  image:
+    name: Create System Image 📀
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Download kernel package
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-clockworkpi-uc4
+          path: ./kernel-pkg
+          run-id: ${{ inputs.run_id }}
+
+      - name: Build Manjaro ARM Image
+        run: |
+          docker run --rm --privileged \
+            -v ${{ github.workspace }}:/build \
+            -w /build \
+            ubuntu:24.04 bash -c '
+              set -e
+              chmod +x scripts/build-image-ubuntu.sh
+              ./scripts/build-image-ubuntu.sh ./kernel-pkg ./release
+            '
+
+      - name: Upload Image to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v6.12.83-1-aarch64
+          files: ./release/*.img.xz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Image (Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: manjaro-arm-uconsole-cm4
+          path: ./release/*.img.xz
+          retention-days: 30

@@ -7,15 +7,6 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-    inputs:
-      image_only:
-        description: 'Run only Create System Image job (skips kernel build)'
-        type: boolean
-        default: false
-      run_id:
-        description: 'GitHub Actions run ID to download kernel artifact from (used when image_only=true)'
-        type: string
-        default: ''
 
 permissions:
   contents: write
@@ -28,7 +19,6 @@ jobs:
   build:
     name: Build 🚀
     runs-on: ubuntu-latest
-    if: ${{ !github.event.inputs.image_only || github.event.inputs.image_only != 'true' }}
     container:
       image: manjarolinux/build
     timeout-minutes: 240
@@ -96,7 +86,7 @@ jobs:
   image:
     name: Create System Image 📀
     needs: build
-    if: ${{ always() && !cancelled() }}
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
