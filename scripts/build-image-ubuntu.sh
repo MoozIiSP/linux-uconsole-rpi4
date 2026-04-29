@@ -86,6 +86,9 @@ fi
 echo "[chroot] Disabling package signature verification..."
 echo "SigLevel = Never" >> /etc/pacman.conf
 
+# Ensure pacman cache + db dirs exist (statvfs needs the dir to determine mount point)
+mkdir -p /var/cache/pacman/pkg /var/lib/pacman
+
 echo "[chroot] Refreshing package databases..."
 pacman -Syy --noconfirm || echo "Warning: pacman -Syy had issues (network/keyring)"
 
@@ -163,14 +166,22 @@ CHROOT_SCRIPT
 # Copy resolv.conf for DNS inside chroot (needed for pacman -Syy)
 cp /etc/resolv.conf "$WORKDIR/etc/resolv.conf"
 
-# Update Manjaro ARM mirrorlist (default mirrors are often stale)
+# Update Manjaro ARM mirrorlist — correct path is /manjaro-arm/stable/$repo/$arch
 MIRRORLIST="$WORKDIR/etc/pacman.d/mirrorlist"
-if [ -f "$MIRRORLIST" ]; then
-    echo "Server = https://mirror.cs.pitt.edu/manjaro-arm/repos/\$repo/\$arch" > "$MIRRORLIST"
-    echo "Server = https://mirror.us.leaseweb.net/manjaro-arm/repos/\$repo/\$arch" >> "$MIRRORLIST"
-    echo "Server = https://mirror.alpix.eu/manjaro-arm/repos/\$repo/\$arch" >> "$MIRRORLIST"
-    echo "Server = https://mirror.phillip-comb.de/manjaro-arm/repos/\$repo/\$arch" >> "$MIRRORLIST"
-fi
+echo "==> Writing Manjaro ARM mirrorlist (stable branch)..."
+cat > "$MIRRORLIST" << 'MIRROR_EOF'
+Server = https://mirror.alpix.eu/manjaro-arm/stable/$repo/$arch
+Server = https://mirror.bytemark.co.uk/manjaro-arm/stable/$repo/$arch
+Server = https://mirrors.ocf.berkeley.edu/manjaro-arm/stable/$repo/$arch
+Server = https://mirror.5i.fi/manjaro-arm/stable/$repo/$arch
+Server = https://manjaro-arm.kamol.cz/stable/$repo/$arch
+MIRROR_EOF
+echo "[mirrorlist]"
+cat "$MIRRORLIST"
+
+# Ensure pacman cache directory exists before chroot pacman runs
+mkdir -p "$WORKDIR/var/cache/pacman/pkg"
+mkdir -p "$WORKDIR/var/lib/pacman"
 
 echo "==> Pre-chroot diagnostics..."
 echo "[diag] Host qemu-aarch64-static:"
@@ -184,10 +195,12 @@ ls -la "$WORKDIR/usr/bin/bash" "$WORKDIR/bin/bash" 2>/dev/null || echo "  (bash 
 echo "[diag] binfmt_misc qemu-aarch64:"
 cat /proc/sys/fs/binfmt_misc/qemu-aarch64 2>/dev/null || echo "  (not registered)"
 
-echo "==> Mounting /proc /sys /dev into chroot..."
+echo "==> Mounting /proc /sys /dev /run into chroot..."
+mkdir -p "$WORKDIR/run"
 mount -t proc /proc "$WORKDIR/proc" || echo "  proc mount failed"
 mount --rbind /sys "$WORKDIR/sys" || echo "  sys bind failed"
 mount --rbind /dev "$WORKDIR/dev" || echo "  dev bind failed"
+mount -t tmpfs tmpfs "$WORKDIR/run" || echo "  run tmpfs failed"
 
 echo "==> Sanity-test chroot (host /bin/echo)..."
 (
@@ -209,6 +222,7 @@ echo "==> Running chroot installation (this takes a few minutes)..."
 )
 
 echo "==> Unmounting chroot mounts..."
+umount -l "$WORKDIR/run" 2>/dev/null || true
 umount -l "$WORKDIR/dev" 2>/dev/null || true
 umount -l "$WORKDIR/sys" 2>/dev/null || true
 umount -l "$WORKDIR/proc" 2>/dev/null || true
