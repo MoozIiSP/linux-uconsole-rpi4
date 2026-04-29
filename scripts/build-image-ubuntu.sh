@@ -299,6 +299,7 @@ RESIZE_SCRIPT
  chmod +x /mnt/root/usr/local/bin/first-boot-resize.sh
 
 # Create systemd service unit
+mkdir -p /mnt/root/etc/systemd/system
  tee /mnt/root/etc/systemd/system/first-boot-resize.service > /dev/null << 'UNIT_EOF'
 [Unit]
 Description=Resize root partition on first boot
@@ -317,6 +318,7 @@ WantedBy=sysinit.target
 UNIT_EOF
 
 # Enable the service
+mkdir -p /mnt/root/etc/systemd/system/sysinit.target.wants
  ln -sf /etc/systemd/system/first-boot-resize.service \
     /mnt/root/etc/systemd/system/sysinit.target.wants/first-boot-resize.service
 
