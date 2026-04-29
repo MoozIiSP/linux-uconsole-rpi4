@@ -172,16 +172,46 @@ if [ -f "$MIRRORLIST" ]; then
     echo "Server = https://mirror.phillip-comb.de/manjaro-arm/repos/\$repo/\$arch" >> "$MIRRORLIST"
 fi
 
+echo "==> Pre-chroot diagnostics..."
+echo "[diag] Host qemu-aarch64-static:"
+file /usr/bin/qemu-aarch64-static || echo "  (file command failed)"
+ls -la /usr/bin/qemu-aarch64-static
+echo "[diag] Chroot qemu-aarch64-static:"
+file "$WORKDIR/usr/bin/qemu-aarch64-static" || echo "  (file command failed)"
+ls -la "$WORKDIR/usr/bin/qemu-aarch64-static"
+echo "[diag] Chroot bash:"
+ls -la "$WORKDIR/usr/bin/bash" "$WORKDIR/bin/bash" 2>/dev/null || echo "  (bash listing partial)"
+echo "[diag] binfmt_misc qemu-aarch64:"
+cat /proc/sys/fs/binfmt_misc/qemu-aarch64 2>/dev/null || echo "  (not registered)"
+
+echo "==> Mounting /proc /sys /dev into chroot..."
+mount -t proc /proc "$WORKDIR/proc" || echo "  proc mount failed"
+mount --rbind /sys "$WORKDIR/sys" || echo "  sys bind failed"
+mount --rbind /dev "$WORKDIR/dev" || echo "  dev bind failed"
+
+echo "==> Sanity-test chroot (host /bin/echo)..."
+(
+    set +e
+    chroot "$WORKDIR" /usr/bin/qemu-aarch64-static /usr/bin/bash -c 'echo "[chroot-test] hello from $(uname -m), bash=$BASH_VERSION"' 2>&1
+    echo "[chroot-test] exit=$?"
+)
+
 echo "==> Running chroot installation (this takes a few minutes)..."
 (
     set +e
-    chroot "$WORKDIR" qemu-aarch64-static bash /tmp/setup-chroot.sh 2>&1 | tee /tmp/chroot.log
+    chroot "$WORKDIR" /usr/bin/qemu-aarch64-static /usr/bin/bash -x /tmp/setup-chroot.sh 2>&1 | tee /tmp/chroot.log
     EXIT_CODE=${PIPESTATUS[0]}
+    echo "[chroot] full log size: $(wc -l < /tmp/chroot.log) lines"
     if [ $EXIT_CODE -ne 0 ]; then
-        echo "WARNING: Chroot failed with exit code $EXIT_CODE. Last 50 lines:"
-        tail -50 /tmp/chroot.log
+        echo "WARNING: Chroot failed with exit code $EXIT_CODE. Last 80 lines:"
+        tail -80 /tmp/chroot.log
     fi
 )
+
+echo "==> Unmounting chroot mounts..."
+umount -l "$WORKDIR/dev" 2>/dev/null || true
+umount -l "$WORKDIR/sys" 2>/dev/null || true
+umount -l "$WORKDIR/proc" 2>/dev/null || true
 
 echo "==> Creating disk image..."
 IMG_FILE="/tmp/${IMG_NAME}.img"
