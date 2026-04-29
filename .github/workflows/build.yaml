@@ -95,8 +95,8 @@ jobs:
 
   image:
     name: Create System Image 📀
-    needs: ${{ github.event.inputs.image_only == 'true' && '[]' || 'build' }}
-    if: ${{ !cancelled() }}
+    needs: build
+    if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
