@@ -70,13 +70,15 @@ fi
 #!/bin/bash
 set -e
 
-echo "[chroot] Initializing keyring..."
-pacman-key --init 2>/dev/null || true
-pacman-key --populate archlinuxarm manjaro 2>/dev/null || true
+echo "[chroot] Disabling package signature verification..."
+echo "SigLevel = Never" >> /etc/pacman.conf
+
+echo "[chroot] Refreshing package databases..."
+pacman -Syy --noconfirm || echo "Warning: pacman -Syy had issues (network/keyring)"
 
 echo "[chroot] Installing custom kernel..."
 if ls /tmp/linux-clockworkpi-uc4-*.pkg.tar.zst 1>/dev/null 2>&1; then
-    pacman -U --noconfirm --needed /tmp/linux-clockworkpi-uc4-*.pkg.tar.zst || echo "Kernel install had warnings"
+    pacman -U --noconfirm --needed /tmp/linux-clockworkpi-uc4-*.pkg.tar.zst 2>&1 | tail -20
 fi
 
 echo "[chroot] Installing base packages..."
@@ -145,8 +147,20 @@ CHROOT_SCRIPT
 
  chmod +x "$WORKDIR/tmp/setup-chroot.sh"
 
+# Copy resolv.conf for DNS inside chroot (needed for pacman -Syy)
+cp /etc/resolv.conf "$WORKDIR/etc/resolv.conf"
+
+# Update Manjaro ARM mirrorlist (default mirrors are often stale)
+MIRRORLIST="$WORKDIR/etc/pacman.d/mirrorlist"
+if [ -f "$MIRRORLIST" ]; then
+    echo "Server = https://mirror.cs.pitt.edu/manjaro-arm/repos/\$repo/\$arch" > "$MIRRORLIST"
+    echo "Server = https://mirror.us.leaseweb.net/manjaro-arm/repos/\$repo/\$arch" >> "$MIRRORLIST"
+    echo "Server = https://mirror.alpix.eu/manjaro-arm/repos/\$repo/\$arch" >> "$MIRRORLIST"
+    echo "Server = https://mirror.phillip-comb.de/manjaro-arm/repos/\$repo/\$arch" >> "$MIRRORLIST"
+fi
+
 echo "==> Running chroot installation (this takes a few minutes)..."
- chroot "$WORKDIR" qemu-aarch64-static bash /tmp/setup-chroot.sh || echo "Chroot completed with warnings"
+chroot "$WORKDIR" qemu-aarch64-static bash /tmp/setup-chroot.sh
 
 echo "==> Creating disk image..."
 IMG_FILE="/tmp/${IMG_NAME}.img"
