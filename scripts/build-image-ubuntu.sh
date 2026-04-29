@@ -86,11 +86,6 @@ fi
 echo "[chroot] Disabling package signature verification..."
 echo "SigLevel = Never" >> /etc/pacman.conf
 
-# Disable CheckSpace — statvfs() on cachedir fails inside chroot and produces
-# spurious 'could not determine cachedir mount point' / 'not enough free disk
-# space' errors. We have plenty of room on the host loop image.
-sed -i 's/^CheckSpace/#CheckSpace/' /etc/pacman.conf
-
 # Ensure pacman cache + db dirs exist (statvfs needs the dir to determine mount point)
 mkdir -p /var/cache/pacman/pkg /var/lib/pacman
 
@@ -191,7 +186,17 @@ if grep -q '^\[community\]' "$PACMAN_CONF" 2>/dev/null; then
     sed -i '/^\[community\]/,/^Include/d' "$PACMAN_CONF"
 fi
 
-# Ensure pacman cache directory exists before chroot pacman runs
+# Disable CheckSpace from host side — chroot rootfs is minimal and lacks sed.
+# CheckSpace fails in qemu chroot (statvfs cachedir mountpoint resolution).
+sed -i 's/^CheckSpace/#CheckSpace/' "$PACMAN_CONF" || true
+
+# Disable signature verification from host side too
+sed -i 's/^SigLevel.*/SigLevel = Never/' "$PACMAN_CONF" || true
+
+echo "[diag] pacman.conf [options] section after host-side edits:"
+sed -n '/^\[options\]/,/^\[/p' "$PACMAN_CONF" | grep -v '^\[' | head -20
+
+# Ensure pacman cache + db dirs exist before chroot pacman runs
 mkdir -p "$WORKDIR/var/cache/pacman/pkg"
 mkdir -p "$WORKDIR/var/lib/pacman"
 
