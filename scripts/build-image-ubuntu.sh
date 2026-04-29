@@ -173,7 +173,15 @@ if [ -f "$MIRRORLIST" ]; then
 fi
 
 echo "==> Running chroot installation (this takes a few minutes)..."
-chroot "$WORKDIR" qemu-aarch64-static bash /tmp/setup-chroot.sh
+(
+    set +e
+    chroot "$WORKDIR" qemu-aarch64-static bash /tmp/setup-chroot.sh 2>&1 | tee /tmp/chroot.log
+    EXIT_CODE=${PIPESTATUS[0]}
+    if [ $EXIT_CODE -ne 0 ]; then
+        echo "WARNING: Chroot failed with exit code $EXIT_CODE. Last 50 lines:"
+        tail -50 /tmp/chroot.log
+    fi
+)
 
 echo "==> Creating disk image..."
 IMG_FILE="/tmp/${IMG_NAME}.img"
