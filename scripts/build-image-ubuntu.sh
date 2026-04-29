@@ -86,6 +86,11 @@ fi
 echo "[chroot] Disabling package signature verification..."
 echo "SigLevel = Never" >> /etc/pacman.conf
 
+# Disable CheckSpace — statvfs() on cachedir fails inside chroot and produces
+# spurious 'could not determine cachedir mount point' / 'not enough free disk
+# space' errors. We have plenty of room on the host loop image.
+sed -i 's/^CheckSpace/#CheckSpace/' /etc/pacman.conf
+
 # Ensure pacman cache + db dirs exist (statvfs needs the dir to determine mount point)
 mkdir -p /var/cache/pacman/pkg /var/lib/pacman
 
@@ -101,7 +106,7 @@ fi
 echo "[chroot] Installing base packages..."
 pacman -Syy --noconfirm --noprogressbar --cachedir /var/cache/pacman/pkg \
     base systemd systemd-libs dialog manjaro-arm-oem-install manjaro-system manjaro-release \
-    raspberrypi-bootloader raspberrypi-utils u-boot-raspberrypi \
+    raspberrypi-bootloader raspberrypi-utils \
     wireless-regdb linux-firmware firmware-raspberrypi wpa_supplicant \
     sudo parted openssh inxi ncdu nano dhcpcd man-pages man-db ntfs-3g usbutils \
     zswap-arm bash-completion irqbalance btrfs-progs f2fs-tools exfatprogs \
