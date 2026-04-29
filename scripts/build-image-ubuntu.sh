@@ -94,18 +94,18 @@ pacman -Syy --noconfirm || echo "Warning: pacman -Syy had issues (network/keyrin
 
 echo "[chroot] Installing custom kernel..."
 if ls /tmp/linux-clockworkpi-uc4-*.pkg.tar.zst 1>/dev/null 2>&1; then
-    pacman -U --noconfirm --needed /tmp/linux-clockworkpi-uc4-*.pkg.tar.zst 2>&1 | tail -20
+    pacman -U --noconfirm --needed --cachedir /var/cache/pacman/pkg \
+        /tmp/linux-clockworkpi-uc4-*.pkg.tar.zst 2>&1 | tail -30
 fi
 
 echo "[chroot] Installing base packages..."
-pacman -Syy --noconfirm \
+pacman -Syy --noconfirm --noprogressbar --cachedir /var/cache/pacman/pkg \
     base systemd systemd-libs dialog manjaro-arm-oem-install manjaro-system manjaro-release \
     raspberrypi-bootloader raspberrypi-utils u-boot-raspberrypi \
     wireless-regdb linux-firmware firmware-raspberrypi wpa_supplicant \
     sudo parted openssh inxi ncdu nano dhcpcd man-pages man-db ntfs-3g usbutils \
     zswap-arm bash-completion irqbalance btrfs-progs f2fs-tools exfatprogs \
-    iwd manjaro-hotfixes mkinitcpio \
-    --noconfirm --noprogressbar || echo "Package installation completed with warnings"
+    iwd manjaro-hotfixes mkinitcpio 2>&1 | tail -40 || echo "Package installation completed with warnings"
 
 echo "[chroot] Generating initramfs..."
 # Run mkinitcpio for our kernel if preset exists
@@ -166,18 +166,25 @@ CHROOT_SCRIPT
 # Copy resolv.conf for DNS inside chroot (needed for pacman -Syy)
 cp /etc/resolv.conf "$WORKDIR/etc/resolv.conf"
 
-# Update Manjaro ARM mirrorlist — correct path is /manjaro-arm/stable/$repo/$arch
+# Update Manjaro ARM mirrorlist — correct path is /manjaro/arm-stable/$repo/$arch
 MIRRORLIST="$WORKDIR/etc/pacman.d/mirrorlist"
-echo "==> Writing Manjaro ARM mirrorlist (stable branch)..."
+echo "==> Writing Manjaro ARM mirrorlist (arm-stable branch)..."
 cat > "$MIRRORLIST" << 'MIRROR_EOF'
-Server = https://mirror.alpix.eu/manjaro-arm/stable/$repo/$arch
-Server = https://mirror.bytemark.co.uk/manjaro-arm/stable/$repo/$arch
-Server = https://mirrors.ocf.berkeley.edu/manjaro-arm/stable/$repo/$arch
-Server = https://mirror.5i.fi/manjaro-arm/stable/$repo/$arch
-Server = https://manjaro-arm.kamol.cz/stable/$repo/$arch
+Server = https://mirror.sjtu.edu.cn/manjaro/arm-stable/$repo/$arch
+Server = https://repo.ialab.dsu.edu/manjaro/arm-stable/$repo/$arch
+Server = https://mirror.easyname.at/manjaro/arm-stable/$repo/$arch
+Server = https://download.nus.edu.sg/mirror/manjaro/arm-stable/$repo/$arch
+Server = https://ftp.free.org/mirrors/repo.manjaro.org/repos/arm-stable/$repo/$arch
 MIRROR_EOF
 echo "[mirrorlist]"
 cat "$MIRRORLIST"
+
+# Remove obsolete [community] repo from pacman.conf (merged into [extra] in 2023)
+PACMAN_CONF="$WORKDIR/etc/pacman.conf"
+if grep -q '^\[community\]' "$PACMAN_CONF" 2>/dev/null; then
+    echo "==> Removing obsolete [community] repo from pacman.conf..."
+    sed -i '/^\[community\]/,/^Include/d' "$PACMAN_CONF"
+fi
 
 # Ensure pacman cache directory exists before chroot pacman runs
 mkdir -p "$WORKDIR/var/cache/pacman/pkg"
