@@ -20,7 +20,7 @@ REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 
 echo "==> Installing required tools..."
 apt-get update -qq
-apt-get install -y -qq qemu-user-static binfmt-support dosfstools parted u-boot-tools e2fsprogs curl wget >/dev/null 2>&1
+apt-get install -y -qq qemu-user-static binfmt-support dosfstools parted u-boot-tools e2fsprogs curl wget kpartx >/dev/null 2>&1
 
 echo "==> Setting up QEMU binfmt..."
 # Try update-binfmts first (Debian/Ubuntu), fallback to manual registration
@@ -160,27 +160,33 @@ echo "==> Partitioning image (GPT)..."
  parted "$IMG_FILE" --script set 1 esp on
 
 echo "==> Formatting partitions..."
- losetup -fP "$IMG_FILE"
-LOOP_DEV=$( losetup -j "$IMG_FILE" | cut -d: -f1)
+losetup -f "$IMG_FILE"
+LOOP_DEV=$(losetup -j "$IMG_FILE" | cut -d: -f1)
 echo "Loop device: $LOOP_DEV"
 
- mkfs.vfat -F 32 -n "BOOT" "${LOOP_DEV}p1"
- mkfs.ext4 -F -L "ROOT" "${LOOP_DEV}p2"
+# Use kpartx to create partition mappings (works in Docker without udev)
+kpartx -av "$LOOP_DEV"
+PART1="/dev/mapper/$(basename $LOOP_DEV)p1"
+PART2="/dev/mapper/$(basename $LOOP_DEV)p2"
+echo "Partition devices: $PART1, $PART2"
+
+mkfs.vfat -F 32 -n "BOOT" "$PART1"
+mkfs.ext4 -F -L "ROOT" "$PART2"
 
 echo "==> Mounting and populating image..."
- mkdir -p /mnt/boot /mnt/root
- mount "${LOOP_DEV}p2" /mnt/root
- mount "${LOOP_DEV}p1" /mnt/boot
+mkdir -p /mnt/boot /mnt/root
+mount "$PART2" /mnt/root
+mount "$PART1" /mnt/boot
 
 # Copy rootfs to root partition
  cp -a "$WORKDIR/"* /mnt/root/
  cp -a "$WORKDIR/".[!.]* /mnt/root/ 2>/dev/null || true
 
 echo "==> Getting PARTUUIDs and UUIDs..."
-BOOT_PARTUUID=$( blkid -s PARTUUID -o value "${LOOP_DEV}p1")
-ROOT_PARTUUID=$( blkid -s PARTUUID -o value "${LOOP_DEV}p2")
-ROOT_UUID=$( blkid -s UUID -o value "${LOOP_DEV}p2")
-BOOT_UUID=$( blkid -s UUID -o value "${LOOP_DEV}p1")
+BOOT_PARTUUID=$(blkid -s PARTUUID -o value "$PART1")
+ROOT_PARTUUID=$(blkid -s PARTUUID -o value "$PART2")
+ROOT_UUID=$(blkid -s UUID -o value "$PART2")
+BOOT_UUID=$(blkid -s UUID -o value "$PART1")
 echo "BOOT PARTUUID: $BOOT_PARTUUID"
 echo "ROOT PARTUUID: $ROOT_PARTUUID"
 echo "ROOT UUID: $ROOT_UUID"
@@ -326,8 +332,8 @@ edition=minimal
 OEM_EOF
 
 echo "==> Finalizing image..."
- umount /mnt/boot /mnt/root
- losetup -d "$LOOP_DEV"
+umount /mnt/boot /mnt/root
+kpartx -dv "$LOOP_DEV"
 
 echo "==> Compressing image..."
 mkdir -p "$OUT_DIR"
