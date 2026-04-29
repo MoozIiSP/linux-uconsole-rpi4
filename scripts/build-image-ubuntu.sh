@@ -70,6 +70,19 @@ fi
 #!/bin/bash
 set -e
 
+echo "[chroot] Testing network connectivity..."
+if ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1; then
+    echo "[chroot] Network OK"
+else
+    echo "[chroot] WARNING: Network unreachable — pacman will fail!"
+    echo "[chroot] resolv.conf:"
+    cat /etc/resolv.conf 2>/dev/null || echo "  (not found)"
+    echo "[chroot] ip route:"
+    ip route 2>/dev/null || echo "  (ip command not found)"
+    echo "[chroot] hostname resolution test:"
+    getent hosts google.com 2>/dev/null || echo "  (DNS resolution failed)"
+fi
+
 echo "[chroot] Disabling package signature verification..."
 echo "SigLevel = Never" >> /etc/pacman.conf
 
