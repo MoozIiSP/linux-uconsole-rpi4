@@ -7,6 +7,15 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      image_only:
+        description: 'Run only Create System Image job (skips kernel build)'
+        type: boolean
+        default: false
+      run_id:
+        description: 'GitHub Actions run ID to download kernel artifact from (used when image_only=true)'
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -19,6 +28,7 @@ jobs:
   build:
     name: Build 🚀
     runs-on: ubuntu-latest
+    if: ${{ !github.event.inputs.image_only || github.event.inputs.image_only != 'true' }}
     container:
       image: manjarolinux/build
     timeout-minutes: 240
@@ -85,7 +95,7 @@ jobs:
 
   image:
     name: Create System Image 📀
-    needs: build
+    needs: ${{ github.event.inputs.image_only == 'true' && '[]' || 'build' }}
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -103,6 +113,7 @@ jobs:
         with:
           name: linux-clockworkpi-uc4
           path: ./kernel-pkg
+          run-id: ${{ github.event.inputs.run_id || github.run_id }}
 
       - name: Build Manjaro ARM Image
         run: |
@@ -119,7 +130,7 @@ jobs:
       - name: Upload Image to Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', needs.build.outputs.pkg_version) }}
+          tag_name: ${{ github.event.inputs.run_id != '' && 'v6.12.83-1-aarch64' || (startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', needs.build.outputs.pkg_version)) }}
           files: ./release/*.img.xz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
