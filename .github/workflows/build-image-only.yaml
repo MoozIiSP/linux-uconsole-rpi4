@@ -28,11 +28,15 @@ jobs:
           platforms: arm64
 
       - name: Download kernel package
-        uses: actions/download-artifact@v4
-        with:
-          name: linux-clockworkpi-uc4
-          path: ./kernel-pkg
-          run-id: ${{ inputs.run_id }}
+        run: |
+          mkdir -p ./kernel-pkg
+          gh api repos/${{ github.repository }}/actions/runs/${{ inputs.run_id }}/artifacts \
+            --jq '.artifacts[] | select(.name == "linux-clockworkpi-uc4") | .archive_download_url' | \
+          xargs -I{} gh api {} > /tmp/artifact.zip
+          unzip /tmp/artifact.zip -d ./kernel-pkg/
+          ls -la ./kernel-pkg/
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Manjaro ARM Image
         run: |
